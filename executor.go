@@ -45,7 +45,7 @@ func (e *Executor) Run(processes []Process) error {
 }
 
 func (e *Executor) startAll(pp []Process) {
-	e.log.Debug("Starting %d processes", len(pp))
+	e.log.Info("Starting %d processes", len(pp))
 
 	e.running = map[string]Process{}
 	e.messages = make(chan message)
@@ -71,7 +71,7 @@ func (e *Executor) run(p Process, startUp *sync.WaitGroup) {
 		}
 	}()
 
-	e.log.Printf("Starting process %q", p)
+	e.log.Info("Starting process %q", p)
 	startUp.Done()
 
 	var result status
@@ -85,7 +85,7 @@ func (e *Executor) run(p Process, startUp *sync.WaitGroup) {
 
 func (e *Executor) waitForAll() {
 	for len(e.running) > 0 {
-		e.log.Printf("Waiting for %d processes to complete", len(e.running))
+		e.log.Debug("Waiting for %d processes to complete", len(e.running))
 
 		message := <-e.messages
 		name := message.p.Name() // TODO what if names collide?
@@ -93,31 +93,31 @@ func (e *Executor) waitForAll() {
 
 		switch message.status {
 		case statusSuccess:
-			e.log.Printf("Task %q finished successfully", message.p)
+			e.log.Info("Task %q finished successfully", message.p)
 		case statusTimeout:
-			e.log.Printf("Task %q: %v", message.p, message.err)
+			e.log.Error("Task %q: %v", message.p, message.err)
 		case statusError:
-			e.log.Printf("Task %q: %v", message.p, message.err)
+			e.log.Error("Task %q: %v", message.p, message.err)
 			e.interruptAll(e.running)
 		}
 	}
 }
 
 func (e *Executor) interruptAll(pp map[string]Process) {
-	e.log.Println("Interrupting all processes")
+	e.log.Info("Interrupting all processes")
 	for _, p := range pp {
 		go e.interrupt(p)
 	}
 }
 
 func (e *Executor) interrupt(p Process) {
-	e.log.Printf("Interrupting process %q", p)
+	e.log.Info("Interrupting process %q", p)
 	done := make(chan struct{})
 
 	go func() {
-		e.log.Printf("Sending interrupt request to %q", p)
+		e.log.Debug("Sending interrupt request to %q", p)
 		err := p.Interrupt()
-		e.log.Printf("Interrupt response from %q: %v", p, err)
+		e.log.Debug("Interrupt response from %q: %v", p, err)
 		if err != nil {
 			e.log.Printf("Error while interrupting %q: %s", p, err)
 		}
@@ -126,7 +126,7 @@ func (e *Executor) interrupt(p Process) {
 
 	select {
 	case <-done:
-		e.log.Printf("Process %q was interrupted successfully", p)
+		e.log.Info("Process %q was interrupted successfully", p)
 		e.messages <- message{p: p, status: statusSuccess}
 	case <-time.After(e.TaskInterruptTimeout):
 		e.messages <- message{p: p, status: statusError,
