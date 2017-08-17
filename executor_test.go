@@ -1,9 +1,9 @@
 package prox
 
 import (
-	"log"
 	"time"
 
+	"github.com/fgrosse/zaptest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -16,6 +16,7 @@ var _ = Describe("Executor", func() {
 
 	BeforeEach(func() {
 		executor = NewExecutor()
+		executor.log = zaptest.LoggerWriter(GinkgoWriter)
 	})
 
 	ExecutorIsDone := func() bool {
@@ -24,9 +25,9 @@ var _ = Describe("Executor", func() {
 
 	RunExecutor := func(processes ...Process) {
 		executorDone = false
-		log.Println("Executor starting")
+		executor.log.Info("Executor starting")
 		executor.Run(processes)
-		log.Println("Executor finished")
+		executor.log.Info("Executor finished")
 		executorDone = true
 	}
 

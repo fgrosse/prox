@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -19,7 +19,7 @@ type status int
 type Executor struct {
 	TaskInterruptTimeout time.Duration
 
-	log      *logrus.Logger
+	log      *zap.Logger
 	running  map[string]Process
 	messages chan message
 }
@@ -33,8 +33,18 @@ type message struct {
 func NewExecutor() *Executor {
 	return &Executor{
 		TaskInterruptTimeout: 5 * time.Second,
-		log:                  logrus.New(),
+		log:                  logger(),
 	}
+}
+
+func logger() *zap.Logger {
+	conf := zap.NewDevelopmentConfig()
+	logger, err := conf.Build()
+	if err != nil {
+		panic(err)
+	}
+
+	return logger
 }
 
 // Start starts all processes and blocks all tasks processes finish.
@@ -45,7 +55,7 @@ func (e *Executor) Run(processes []Process) error {
 }
 
 func (e *Executor) startAll(pp []Process) {
-	e.log.Info("Starting %d processes", len(pp))
+	e.log.Info("Starting processes", zap.Int("amount", len(pp)))
 
 	e.running = map[string]Process{}
 	e.messages = make(chan message)
@@ -71,7 +81,7 @@ func (e *Executor) run(p Process, startUp *sync.WaitGroup) {
 		}
 	}()
 
-	e.log.Info("Starting process %q", p)
+	e.log.Info("Starting process", zap.String("name", p.Name()))
 	startUp.Done()
 
 	var result status
@@ -85,7 +95,7 @@ func (e *Executor) run(p Process, startUp *sync.WaitGroup) {
 
 func (e *Executor) waitForAll() {
 	for len(e.running) > 0 {
-		e.log.Debug("Waiting for %d processes to complete", len(e.running))
+		e.log.Debug("Waiting for processes to complete", zap.Int("amount", len(e.running)))
 
 		message := <-e.messages
 		name := message.p.Name() // TODO what if names collide?
@@ -93,11 +103,11 @@ func (e *Executor) waitForAll() {
 
 		switch message.status {
 		case statusSuccess:
-			e.log.Info("Task %q finished successfully", message.p)
+			e.log.Info("Task finished successfully", zap.String("name", message.p.Name()))
 		case statusTimeout:
-			e.log.Error("Task %q: %v", message.p, message.err)
+			e.log.Error("Task timeout", zap.String("name", message.p.Name()), zap.Error(message.err))
 		case statusError:
-			e.log.Error("Task %q: %v", message.p, message.err)
+			e.log.Error("Task error", zap.String("name", message.p.Name()), zap.Error(message.err))
 			e.interruptAll(e.running)
 		}
 	}
@@ -111,22 +121,22 @@ func (e *Executor) interruptAll(pp map[string]Process) {
 }
 
 func (e *Executor) interrupt(p Process) {
-	e.log.Info("Interrupting process %q", p)
+	e.log.Info("Interrupting process", zap.String("name", p.Name()))
 	done := make(chan struct{})
 
 	go func() {
-		e.log.Debug("Sending interrupt request to %q", p)
+		e.log.Debug("Sending interrupt request to process", zap.String("name", p.Name()))
 		err := p.Interrupt()
-		e.log.Debug("Interrupt response from %q: %v", p, err)
+		e.log.Debug("Interrupt response from", zap.String("name", p.Name()), zap.Error(err))
 		if err != nil {
-			e.log.Printf("Error while interrupting %q: %s", p, err)
+			e.log.Error("Error while interrupting process", zap.String("name", p.Name()), zap.Error(err))
 		}
 		done <- struct{}{}
 	}()
 
 	select {
 	case <-done:
-		e.log.Info("Process %q was interrupted successfully", p)
+		e.log.Info("Process was interrupted successfully", zap.String("name", p.Name()))
 		e.messages <- message{p: p, status: statusSuccess}
 	case <-time.After(e.TaskInterruptTimeout):
 		e.messages <- message{p: p, status: statusError,
