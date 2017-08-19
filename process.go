@@ -10,10 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-
-	"time"
-
 	"syscall"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -30,15 +28,18 @@ type shellProcess struct {
 	logger *zap.Logger
 	writer io.Writer
 
+	interruptTimeout time.Duration
+
 	mu  sync.Mutex
 	cmd *exec.Cmd
 }
 
 func NewShellProcess(name, script string) Process {
 	return &shellProcess{
-		script: script,
-		name:   name,
-		env:    SystemEnv(),
+		script:           script,
+		name:             name,
+		interruptTimeout: 5 * time.Second,
+		env:              SystemEnv(),
 	}
 }
 
@@ -86,7 +87,7 @@ func (p *shellProcess) wait(ctx context.Context) error {
 	case err := <-done:
 		return err
 	case <-ctx.Done():
-		p.logger.Info("Sending interrupt signal")
+		p.logger.Info("Sending interrupt signal", zap.Duration("timeout", p.interruptTimeout))
 		err := p.cmd.Process.Signal(syscall.SIGINT)
 		if err != nil {
 			p.logger.Error("Failed to send SIGINT to process", zap.Error(err))
@@ -97,7 +98,7 @@ func (p *shellProcess) wait(ctx context.Context) error {
 		select {
 		case <-done:
 			p.logger.Info("Process interrupted successfully", zap.Error(err))
-		case <-time.After(time.Second): // TODO: make configurable
+		case <-time.After(p.interruptTimeout):
 			err := p.cmd.Process.Kill()
 			if err != nil {
 				p.logger.Error("Failed to kill process", zap.Error(err))

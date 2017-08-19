@@ -1,6 +1,8 @@
 package prox
 
 import (
+	"context"
+
 	"github.com/fgrosse/zaptest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -24,7 +26,8 @@ var _ = Describe("Executor", func() {
 	RunExecutor := func(processes ...Process) {
 		executorDone = false
 		executor.log.Info("Executor starting")
-		executor.Run(processes)
+		ctx := context.Background()
+		executor.Run(ctx, processes)
 		executor.log.Info("Executor finished")
 		executorDone = true
 	}

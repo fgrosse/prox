@@ -2,7 +2,6 @@ package prox
 
 import (
 	"fmt"
-	"time"
 
 	"context"
 
@@ -18,8 +17,6 @@ const (
 type status int
 
 type Executor struct {
-	TaskInterruptTimeout time.Duration
-
 	log      *zap.Logger
 	running  map[string]Process
 	messages chan message
@@ -33,14 +30,13 @@ type message struct {
 
 func NewExecutor() *Executor {
 	return &Executor{
-		TaskInterruptTimeout: 5 * time.Second,
-		log:                  logger(""),
+		log: logger(""),
 	}
 }
 
 // Start starts all processes and blocks all tasks processes finish.
-func (e *Executor) Run(processes []Process) error { // TODO: pass context
-	ctx, cancel := context.WithCancel(context.TODO())
+func (e *Executor) Run(ctx context.Context, processes []Process) error {
+	ctx, cancel := context.WithCancel(ctx)
 	e.startAll(ctx, processes)
 	e.waitForAll(cancel)
 	return nil
