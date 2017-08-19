@@ -1,13 +1,18 @@
 package prox
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"sort"
 	"strings"
 	"testing"
+
+	"syscall"
 
 	"github.com/fgrosse/zaptest"
 	. "github.com/onsi/ginkgo"
@@ -63,9 +68,12 @@ var _ = Describe("shellProcess", func() {
 				return resp.StatusCode
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				defer GinkgoRecover()
-				p.Run()
+				p.Run(ctx)
 			}()
 
 			Eventually(httpRequest).Should(Equal(http.StatusOK), "should eventually answer with status code 200")
@@ -81,9 +89,12 @@ var _ = Describe("shellProcess", func() {
 				writer: w,
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				defer GinkgoRecover()
-				p.Run()
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`hello`))
@@ -100,9 +111,12 @@ var _ = Describe("shellProcess", func() {
 				writer: w,
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				defer GinkgoRecover()
-				p.Run()
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`hello`))
@@ -124,9 +138,12 @@ var _ = Describe("shellProcess", func() {
 				}),
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				defer GinkgoRecover()
-				p.Run()
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`FOO=bar`))
@@ -146,20 +163,105 @@ var _ = Describe("shellProcess", func() {
 				}),
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				defer GinkgoRecover()
-				p.Run()
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`it_worked!`))
 		})
 
-		PIt("should parse and use environment variables at the beginning of the script")
-		PIt("should cancel process execution if the given context is canceled")
-	})
+		It("should parse and use environment variables at the beginning of the script", func() {
+			w := NewBuffer()
+			p := &shellProcess{
+				name:   "test",
+				script: "FOO=nice BAR=cool " + testProcessScript("echo", "-env"),
+				logger: log.Named("process"),
+				writer: w,
+				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
+			}
 
-	Describe("Interrupt", func() {
-		PIt("should stop the running process")
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go func() {
+				defer GinkgoRecover()
+				p.Run(ctx)
+			}()
+
+			Eventually(w).Should(Say(`BAR=cool`))
+			Eventually(w).Should(Say(`FOO=nice`))
+		})
+
+		PIt("should pass env variables with spaces at the beginning of the script", func() {
+			w := NewBuffer()
+			p := &shellProcess{
+				name:   "test",
+				script: `FOO="Hello World" ` + testProcessScript("echo", "-env"),
+				logger: log.Named("process"),
+				writer: w,
+				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go func() {
+				defer GinkgoRecover()
+				p.Run(ctx)
+			}()
+
+			Eventually(w).Should(Say(`FOO=Hello World`))
+		})
+
+		Describe("canceling process", func() {
+			It("should send SIGINT if the given context is canceled", func() {
+				p := &shellProcess{
+					name:   "test",
+					script: testProcessScript("echo", "-block"),
+					logger: log.Named("process"),
+					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
+				}
+
+				ctx, cancel := context.WithCancel(context.Background())
+				sync := make(chan bool)
+				go func() {
+					defer GinkgoRecover()
+					sync <- true
+					p.Run(ctx)
+					sync <- true
+				}()
+
+				Eventually(sync).Should(Receive(), "wait for goroutine to start")
+				cancel()
+				Eventually(sync).Should(Receive(), "wait for goroutine to finish")
+			})
+
+			It("should kill process if it does not respond to SIGINT", func() {
+				p := &shellProcess{
+					name:   "test",
+					script: testProcessScript("echo", "-block", "-ignoreSIGINT"),
+					logger: log.Named("process"),
+					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
+				}
+
+				ctx, cancel := context.WithCancel(context.Background())
+				sync := make(chan bool)
+				go func() {
+					defer GinkgoRecover()
+					sync <- true
+					p.Run(ctx)
+					sync <- true
+				}()
+
+				Eventually(sync).Should(Receive(), "wait for goroutine to start")
+				cancel()
+				Eventually(sync).Should(Receive(), "wait for goroutine to finish")
+			})
+		})
 	})
 })
 
@@ -223,6 +325,9 @@ func echoProcess(args []string) {
 	fs := flag.NewFlagSet("echo", flag.ExitOnError)
 	stdErr := fs.Bool("stderr", false, "print via std err")
 	printEnv := fs.Bool("env", false, "print all environment variables")
+	blocking := fs.Bool("block", false, "do not return after printing")
+	noSigInt := fs.Bool("no-sigint", false, "ignore SIGINT when blocking")
+
 	err := fs.Parse(args)
 	if err != nil {
 		fmt.Println(err)
@@ -236,15 +341,42 @@ func echoProcess(args []string) {
 	}
 
 	if *printEnv {
-		for _, e := range os.Environ() {
+		fmt.Println("Printing all environment variables")
+		all := os.Environ()
+		sort.Strings(all) // for stable tests
+
+		for _, e := range all {
 			fmt.Fprintln(out, e)
 		}
-		os.Exit(0)
 	}
 
 	for _, v := range args {
 		fmt.Fprintln(out, v)
 	}
+
+	if *blocking {
+		fmt.Println("Blocking..")
+		c := make(chan os.Signal, 1)
+		signal.Reset(syscall.SIGINT) // take control from test runner
+		signal.Notify(c)
+
+		for {
+			fmt.Println("Waiting for os signal")
+			sig := <-c
+			fmt.Printf("Received signal %v\n", sig)
+
+			if sig == syscall.SIGINT && *noSigInt {
+				// TODO: this does not actually work and the program terminates
+				// anyway on sigint. I suspect this is automatically and
+				// unconditionally done by the test binary itself somehow.
+				continue
+			} else {
+				break
+			}
+		}
+	}
+
+	os.Exit(0)
 }
 
 // freePort asks the kernel for a free open port that is ready to be used.

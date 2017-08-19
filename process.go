@@ -1,19 +1,26 @@
 package prox
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
+
+	"time"
+
+	"syscall"
 
 	"go.uber.org/zap"
 )
 
 type Process interface {
 	Name() string
-	Run() error // TODO pass a ctx
+	Run(ctx context.Context) error // TODO pass a ctx
 	Interrupt() error
 }
 
@@ -32,6 +39,7 @@ func NewShellProcess(name, script string) Process {
 	return &shellProcess{
 		script: script,
 		name:   name,
+		env:    SystemEnv(),
 	}
 }
 
@@ -39,7 +47,7 @@ func (p *shellProcess) Name() string {
 	return p.name
 }
 
-func (p *shellProcess) Run() error {
+func (p *shellProcess) Run(ctx context.Context) error {
 	p.mu.Lock()
 
 	if p.logger == nil {
@@ -52,7 +60,7 @@ func (p *shellProcess) Run() error {
 		zap.Strings("env", p.env.List()),
 	)
 
-	cmdParts := strings.Split(commandLine, " ")
+	cmdParts := strings.Fields(commandLine)
 	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 
 	p.cmd.Stdout = p.writer
@@ -66,32 +74,65 @@ func (p *shellProcess) Run() error {
 		return fmt.Errorf("could not start shell task: %s", err)
 	}
 
-	return p.cmd.Wait()
+	return p.wait(ctx)
+}
+
+func (p *shellProcess) wait(ctx context.Context) error {
+	done := make(chan error)
+	go func() {
+		done <- p.cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		p.logger.Info("Sending interrupt signal")
+		err := p.cmd.Process.Signal(syscall.SIGINT)
+		if err != nil {
+			p.logger.Error("Failed to send SIGINT to process", zap.Error(err))
+			p.cmd.Process.Kill()
+			return ctx.Err()
+		}
+
+		select {
+		case <-done:
+			p.logger.Info("Process interrupted successfully", zap.Error(err))
+		case <-time.After(time.Second): // TODO: make configurable
+			err := p.cmd.Process.Kill()
+			if err != nil {
+				p.logger.Error("Failed to kill process", zap.Error(err))
+			}
+		}
+
+		return ctx.Err()
+	}
 }
 
 func (p *shellProcess) buildCommandLine() string {
-	return p.env.Expand(p.script)
-	//
-	//r := regexp.MustCompile(`[a-zA-Z_]+=\S+`)
-	//
-	//commandLineBuffer := new(bytes.Buffer)
-	//parts := strings.Split(commandLine, " ") // TODO breaks if we have quotes spaces
-	//done := false
-	//for _, part := range parts {
-	//	match := r.FindString(part)
-	//	if done == false && match != "" {
-	//		p.Env.Set(match)
-	//	} else {
-	//		done = true
-	//	}
-	//
-	//	if done {
-	//		commandLineBuffer.WriteString(part)
-	//		commandLineBuffer.WriteString(" ")
-	//	}
-	//}
-	//
-	//return strings.TrimSpace(commandLineBuffer.String())
+	script := p.env.Expand(p.script)
+
+	r := regexp.MustCompile(`[a-zA-Z_]+=\S+`)
+
+	b := new(bytes.Buffer)
+	parts := strings.Fields(script) // TODO breaks if we have quotes spaces
+
+	var done bool
+	for _, part := range parts {
+		match := r.FindString(part)
+		if done == false && match != "" {
+			p.env.Set(match)
+		} else {
+			done = true
+		}
+
+		if done {
+			b.WriteString(part)
+			b.WriteString(" ")
+		}
+	}
+
+	return strings.TrimSpace(b.String())
 }
 
 func (p *shellProcess) Interrupt() error {

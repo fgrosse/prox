@@ -34,7 +34,7 @@ func ParseEnvFile(r io.Reader) ([]string, error) { // TODO: return Environment?
 
 type Environment map[string]string
 
-func SystemEnvironment() Environment {
+func SystemEnv() Environment {
 	return NewEnv(os.Environ())
 }
 

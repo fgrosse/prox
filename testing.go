@@ -1,6 +1,7 @@
 package prox
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -26,7 +27,7 @@ func (t *TestProcess) String() string {
 	return t.Name()
 }
 
-func (t *TestProcess) Run() error {
+func (t *TestProcess) Run(ctx context.Context) error { // TODO: use ctx
 	if t.started {
 		return errors.New("started multiple times")
 	}

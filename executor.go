@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	"go.uber.org/zap"
 )
 
@@ -75,7 +77,7 @@ func (e *Executor) run(p Process, startUp *sync.WaitGroup) {
 	startUp.Done()
 
 	var result status
-	err := p.Run()
+	err := p.Run(context.TODO()) // TODO: use context
 	if err != nil {
 		result = statusError
 	}
