@@ -22,6 +22,10 @@ func (t *TestProcess) Name() string {
 	return t.name
 }
 
+func (t *TestProcess) RegisterEnvironment([]string) {
+	// no-op
+}
+
 func (t *TestProcess) String() string {
 	return t.Name()
 }

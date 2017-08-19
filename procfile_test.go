@@ -17,7 +17,7 @@ var _ = Describe("ParseProcFile", func() {
 			selenium: java -jar /usr/local/bin/selenium-server-standalone.jar
 		`
 
-		It("should parse ShellProcess from the content", func() {
+		It("should parse shellProcess from the content", func() {
 			processes, err := ParseProcFile(strings.NewReader(content))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(processes).To(HaveLen(3))

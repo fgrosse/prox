@@ -33,18 +33,8 @@ type message struct {
 func NewExecutor() *Executor {
 	return &Executor{
 		TaskInterruptTimeout: 5 * time.Second,
-		log:                  logger(),
+		log:                  logger(""),
 	}
-}
-
-func logger() *zap.Logger {
-	conf := zap.NewDevelopmentConfig()
-	logger, err := conf.Build()
-	if err != nil {
-		panic(err)
-	}
-
-	return logger
 }
 
 // Start starts all processes and blocks all tasks processes finish.
