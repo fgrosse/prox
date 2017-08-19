@@ -1,8 +1,6 @@
 package prox
 
 import (
-	"time"
-
 	"github.com/fgrosse/zaptest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -97,21 +95,6 @@ var _ = Describe("Executor", func() {
 
 			p2.FinishInterrupt()
 			Eventually(ExecutorIsDone).Should(BeTrue(), "executor should return when p2 is done")
-		})
-
-		It("should timeout if a tasks interruption takes too long", func() {
-			executor.TaskInterruptTimeout, _ = time.ParseDuration("100ms")
-
-			p1 := &TestProcess{name: "p1"}
-			p2 := &TestProcess{name: "p2"}
-
-			go RunExecutor(p1, p2)
-			EventuallyAllProcessesShouldHaveStarted(p1, p2)
-
-			p2.ShouldBlockOnInterrupt()
-			p1.Fail()
-
-			Eventually(ExecutorIsDone).Should(BeTrue(), "executor should give up and return anyway")
 		})
 
 		It("should interrupt all other processes if one process panics", func() {

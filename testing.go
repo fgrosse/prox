@@ -11,10 +11,9 @@ type TestProcess struct {
 	started     bool
 	interrupted bool
 
-	finish    chan chan bool // bool instead of struct{} for better readability of test code
-	interrupt chan chan bool
-	fail      chan chan bool
-	panic     chan chan bool
+	finish chan chan bool // bool instead of struct{} for better readability of test code
+	fail   chan chan bool
+	panic  chan chan bool
 
 	interruptFinisher chan bool // to optionally block on Interrupt calls
 }
@@ -39,10 +38,13 @@ func (t *TestProcess) Run(ctx context.Context) error { // TODO: use ctx
 	t.panic = make(chan chan bool)
 
 	select {
+	case <-ctx.Done():
+		if t.interruptFinisher != nil {
+			<-t.interruptFinisher
+		}
+		t.interrupted = true
+		return ctx.Err()
 	case c := <-t.finish:
-		c <- true
-		return nil
-	case c := <-t.interrupt:
 		c <- true
 		return nil
 	case c := <-t.fail:
@@ -52,17 +54,6 @@ func (t *TestProcess) Run(ctx context.Context) error { // TODO: use ctx
 		c <- true
 		panic(fmt.Errorf("TestProcess simulated a panic"))
 	}
-}
-
-func (t *TestProcess) Interrupt() error {
-	if t.interruptFinisher != nil {
-		<-t.interruptFinisher
-	}
-
-	t.signal(t.interrupt)
-	t.interrupted = true
-
-	return nil
 }
 
 func (t *TestProcess) Finish() {

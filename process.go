@@ -20,8 +20,7 @@ import (
 
 type Process interface {
 	Name() string
-	Run(ctx context.Context) error // TODO pass a ctx
-	Interrupt() error
+	Run(context.Context) error
 }
 
 type shellProcess struct {

@@ -2,7 +2,6 @@ package prox
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"context"
@@ -13,7 +12,7 @@ import (
 const (
 	statusSuccess status = iota
 	statusError
-	statusTimeout
+	statusInterrupted
 )
 
 type status int
@@ -40,29 +39,26 @@ func NewExecutor() *Executor {
 }
 
 // Start starts all processes and blocks all tasks processes finish.
-func (e *Executor) Run(processes []Process) error {
-	e.startAll(processes)
-	e.waitForAll()
+func (e *Executor) Run(processes []Process) error { // TODO: pass context
+	ctx, cancel := context.WithCancel(context.TODO())
+	e.startAll(ctx, processes)
+	e.waitForAll(cancel)
 	return nil
 }
 
-func (e *Executor) startAll(pp []Process) {
+func (e *Executor) startAll(ctx context.Context, pp []Process) {
 	e.log.Info("Starting processes", zap.Int("amount", len(pp)))
 
 	e.running = map[string]Process{}
 	e.messages = make(chan message)
 
-	startUp := new(sync.WaitGroup)
 	for _, p := range pp {
 		e.running[p.Name()] = p
-		startUp.Add(1)
-		go e.run(p, startUp)
+		go e.run(ctx, p)
 	}
-
-	startUp.Wait()
 }
 
-func (e *Executor) run(p Process, startUp *sync.WaitGroup) {
+func (e *Executor) run(ctx context.Context, p Process) {
 	defer func() {
 		if r := recover(); r != nil {
 			err, ok := r.(error)
@@ -74,18 +70,22 @@ func (e *Executor) run(p Process, startUp *sync.WaitGroup) {
 	}()
 
 	e.log.Info("Starting process", zap.String("name", p.Name()))
-	startUp.Done()
+	err := p.Run(ctx)
 
 	var result status
-	err := p.Run(context.TODO()) // TODO: use context
-	if err != nil {
+	switch {
+	case err == context.Canceled:
+		result = statusInterrupted
+	case err != nil:
 		result = statusError
+	default:
+		result = statusSuccess
 	}
 
 	e.messages <- message{p: p, status: result, err: err}
 }
 
-func (e *Executor) waitForAll() {
+func (e *Executor) waitForAll(interruptAll func()) {
 	for len(e.running) > 0 {
 		e.log.Debug("Waiting for processes to complete", zap.Int("amount", len(e.running)))
 
@@ -96,43 +96,11 @@ func (e *Executor) waitForAll() {
 		switch message.status {
 		case statusSuccess:
 			e.log.Info("Task finished successfully", zap.String("name", message.p.Name()))
-		case statusTimeout:
-			e.log.Error("Task timeout", zap.String("name", message.p.Name()), zap.Error(message.err))
+		case statusInterrupted:
+			e.log.Error("Task was interrupted", zap.String("name", message.p.Name()), zap.Error(message.err))
 		case statusError:
 			e.log.Error("Task error", zap.String("name", message.p.Name()), zap.Error(message.err))
-			e.interruptAll(e.running)
-		}
-	}
-}
-
-func (e *Executor) interruptAll(pp map[string]Process) {
-	e.log.Info("Interrupting all processes")
-	for _, p := range pp {
-		go e.interrupt(p)
-	}
-}
-
-func (e *Executor) interrupt(p Process) {
-	e.log.Info("Interrupting process", zap.String("name", p.Name()))
-	done := make(chan struct{})
-
-	go func() {
-		e.log.Debug("Sending interrupt request to process", zap.String("name", p.Name()))
-		err := p.Interrupt()
-		e.log.Debug("Interrupt response from", zap.String("name", p.Name()), zap.Error(err))
-		if err != nil {
-			e.log.Error("Error while interrupting process", zap.String("name", p.Name()), zap.Error(err))
-		}
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-		e.log.Info("Process was interrupted successfully", zap.String("name", p.Name()))
-		e.messages <- message{p: p, status: statusSuccess}
-	case <-time.After(e.TaskInterruptTimeout):
-		e.messages <- message{p: p, status: statusError,
-			err: fmt.Errorf("did not respond to interrupt in time (waited %s)", e.TaskInterruptTimeout),
+			interruptAll()
 		}
 	}
 }
