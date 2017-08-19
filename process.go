@@ -33,7 +33,6 @@ func NewShellProcess(name, script string) Process {
 	return &shellProcess{
 		script: script,
 		name:   name,
-		logger: logger(name),
 	}
 }
 
@@ -48,6 +47,10 @@ func (p *shellProcess) RegisterEnvironment(env []string) {
 func (p *shellProcess) Run() error {
 	p.mu.Lock()
 
+	if p.logger == nil {
+		p.logger = zap.NewNop()
+	}
+
 	commandLine := p.buildCommandLine()
 	p.logger.Debug("Starting process",
 		zap.String("script", commandLine),
@@ -57,9 +60,8 @@ func (p *shellProcess) Run() error {
 	cmdParts := strings.Split(commandLine, " ")
 	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 
-	//writer := OutputWriter(output)
-	//p.cmd.Stdout = writer
-	//p.cmd.Stderr = writer
+	p.cmd.Stdout = p.writer
+	p.cmd.Stderr = p.writer
 	p.cmd.Env = p.env
 
 	err := p.cmd.Start()
