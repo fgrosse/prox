@@ -44,7 +44,7 @@ var _ = Describe("shellProcess", func() {
 			p := &shellProcess{
 				name:   "test",
 				script: testProcessScript("http", port),
-				env:    []string{"GO_WANT_HELPER_PROCESS=1"},
+				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 				logger: log.Named("http_server"),
 			}
 
@@ -76,7 +76,7 @@ var _ = Describe("shellProcess", func() {
 			p := &shellProcess{
 				name:   "test",
 				script: testProcessScript("echo", "hello", "world"),
-				env:    []string{"GO_WANT_HELPER_PROCESS=1"},
+				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 				logger: log.Named("process"),
 				writer: w,
 			}
@@ -95,7 +95,7 @@ var _ = Describe("shellProcess", func() {
 			p := &shellProcess{
 				name:   "test",
 				script: testProcessScript("echo", "-stderr", "hello", "world"),
-				env:    []string{"GO_WANT_HELPER_PROCESS=1"},
+				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 				logger: log.Named("process"),
 				writer: w,
 			}
@@ -110,8 +110,50 @@ var _ = Describe("shellProcess", func() {
 			log.Info("Full message", zap.String("contents", string(w.Contents())))
 		})
 
-		PIt("should use the given environment")
-		PIt("should replace environment variables in the script")
+		It("should use the given environment", func() {
+			w := NewBuffer()
+			p := &shellProcess{
+				name:   "test",
+				script: testProcessScript("echo", "-env"),
+				logger: log.Named("process"),
+				writer: w,
+				env: NewEnv([]string{
+					"GO_WANT_HELPER_PROCESS=1",
+					"FOO=bar",
+					"baz=BLUP",
+				}),
+			}
+
+			go func() {
+				defer GinkgoRecover()
+				p.Run()
+			}()
+
+			Eventually(w).Should(Say(`FOO=bar`))
+			Eventually(w).Should(Say(`baz=BLUP`))
+		})
+
+		It("should replace environment variables in the script", func() {
+			w := NewBuffer()
+			p := &shellProcess{
+				name:   "test",
+				script: testProcessScript("echo", "$FOO"),
+				logger: log.Named("process"),
+				writer: w,
+				env: NewEnv([]string{
+					"GO_WANT_HELPER_PROCESS=1",
+					"FOO=it_worked!",
+				}),
+			}
+
+			go func() {
+				defer GinkgoRecover()
+				p.Run()
+			}()
+
+			Eventually(w).Should(Say(`it_worked!`))
+		})
+
 		PIt("should parse and use environment variables at the beginning of the script")
 		PIt("should cancel process execution if the given context is canceled")
 	})
@@ -180,6 +222,7 @@ func httpServerProcess(args []string) {
 func echoProcess(args []string) {
 	fs := flag.NewFlagSet("echo", flag.ExitOnError)
 	stdErr := fs.Bool("stderr", false, "print via std err")
+	printEnv := fs.Bool("env", false, "print all environment variables")
 	err := fs.Parse(args)
 	if err != nil {
 		fmt.Println(err)
@@ -190,6 +233,13 @@ func echoProcess(args []string) {
 	if *stdErr {
 		out = os.Stderr
 		fmt.Println("Printing via stderr")
+	}
+
+	if *printEnv {
+		for _, e := range os.Environ() {
+			fmt.Fprintln(out, e)
+		}
+		os.Exit(0)
 	}
 
 	for _, v := range args {

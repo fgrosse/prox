@@ -15,13 +15,12 @@ type Process interface {
 	Name() string
 	Run() error // TODO pass a ctx
 	Interrupt() error
-	RegisterEnvironment([]string)
 }
 
 type shellProcess struct {
 	name   string
 	script string
-	env    []string
+	env    Environment
 	logger *zap.Logger
 	writer io.Writer
 
@@ -40,10 +39,6 @@ func (p *shellProcess) Name() string {
 	return p.name
 }
 
-func (p *shellProcess) RegisterEnvironment(env []string) {
-	p.env = env
-}
-
 func (p *shellProcess) Run() error {
 	p.mu.Lock()
 
@@ -54,7 +49,7 @@ func (p *shellProcess) Run() error {
 	commandLine := p.buildCommandLine()
 	p.logger.Debug("Starting process",
 		zap.String("script", commandLine),
-		zap.Strings("env", p.env),
+		zap.Strings("env", p.env.List()),
 	)
 
 	cmdParts := strings.Split(commandLine, " ")
@@ -62,7 +57,7 @@ func (p *shellProcess) Run() error {
 
 	p.cmd.Stdout = p.writer
 	p.cmd.Stderr = p.writer
-	p.cmd.Env = p.env
+	p.cmd.Env = p.env.List()
 
 	err := p.cmd.Start()
 	p.mu.Unlock()
@@ -75,9 +70,7 @@ func (p *shellProcess) Run() error {
 }
 
 func (p *shellProcess) buildCommandLine() string {
-	return p.script
-
-	//commandLine := p.Env.Replace(p.script)
+	return p.env.Expand(p.script)
 	//
 	//r := regexp.MustCompile(`[a-zA-Z_]+=\S+`)
 	//
