@@ -24,7 +24,7 @@ import (
 var _ = Describe("shellProcess", func() {
 	Describe("Name", func() {
 		It("should return the shellProcess.name", func() {
-			p := NewShellProcess("foo", "echo foo")
+			p := NewShellProcess("foo", "echo foo", Environment{})
 			Expect(p.Name()).To(Equal("foo"))
 		})
 	})

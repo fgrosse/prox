@@ -18,7 +18,7 @@ var _ = Describe("ParseProcFile", func() {
 		`
 
 		It("should parse shellProcess from the content", func() {
-			processes, err := ParseProcFile(strings.NewReader(content))
+			processes, err := ParseProcFile(strings.NewReader(content), Environment{})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(processes).To(HaveLen(3))
 			Expect(processes).To(ContainShellTask("redis", "bin/redis-server conf/redis.conf"))
@@ -28,16 +28,31 @@ var _ = Describe("ParseProcFile", func() {
 
 		It("should ignore empty lines", func() {
 			content = content + "\n\n\nfoo: test"
-			processes, err := ParseProcFile(strings.NewReader(content))
+			processes, err := ParseProcFile(strings.NewReader(content), Environment{})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(processes).To(HaveLen(4))
 			Expect(processes).To(ContainShellTask("foo", "test"))
+		})
+
+		Describe("setting environment variables", func() {
+			It("should pass the given environment to all created shell tasks", func() {
+				env := Environment{
+					"FOO": "bar",
+				}
+				processes, err := ParseProcFile(strings.NewReader(content), env)
+				Expect(err).NotTo(HaveOccurred())
+				for _, p := range processes {
+					p, ok := p.(*shellProcess)
+					Expect(ok).To(BeTrue())
+					Expect(p.env).To(Equal(env))
+				}
+			})
 		})
 	})
 })
 
 func ContainShellTask(name, commandLine string) types.GomegaMatcher {
 	return &matchers.ContainElementMatcher{
-		Element: NewShellProcess(name, commandLine),
+		Element: NewShellProcess(name, commandLine, Environment{}),
 	}
 }

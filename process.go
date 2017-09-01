@@ -3,7 +3,6 @@ package prox
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -16,6 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// A Process is an abstraction of a child process which is started by the
+// Executor.
 type Process interface {
 	Name() string
 	Run(context.Context) error
@@ -34,19 +35,25 @@ type shellProcess struct {
 	cmd *exec.Cmd
 }
 
-func NewShellProcess(name, script string) Process {
+// NewShellProcess creates a new Process that executes the given script as a new
+// system process (using os/exec).
+func NewShellProcess(name, script string, env Environment) Process {
 	return &shellProcess{
 		script:           script,
 		name:             name,
 		interruptTimeout: 5 * time.Second,
-		env:              SystemEnv(),
+		env:              env,
 	}
 }
 
+// Name returns the human readable name of p that can be used to identify a
+// specific process.
 func (p *shellProcess) Name() string {
 	return p.name
 }
 
+// Run starts the shell process and blocks until it finishes or the context is
+// done.
 func (p *shellProcess) Run(ctx context.Context) error {
 	p.mu.Lock()
 
@@ -133,8 +140,4 @@ func (p *shellProcess) buildCommandLine() string {
 	}
 
 	return strings.TrimSpace(b.String())
-}
-
-func (p *shellProcess) Interrupt() error {
-	return errors.New("NOT IMPLEMENTED")
 }

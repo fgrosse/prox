@@ -33,12 +33,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/mitchellh/go-homedir"
-  packages = ["."]
-  revision = "b8bc1bf767474819792c23f32d8286a45736f1c6"
-
-[[projects]]
-  branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "d0303fe809921458f417bcf828397a65db30a7e4"
@@ -51,7 +45,7 @@
 
 [[projects]]
   name = "github.com/onsi/gomega"
-  packages = [".","format","internal/assertion","internal/asyncassertion","internal/oraclematcher","internal/testingtsupport","matchers","matchers/support/goraph/bipartitegraph","matchers/support/goraph/edge","matchers/support/goraph/node","matchers/support/goraph/util","types"]
+  packages = [".","format","gbytes","internal/assertion","internal/asyncassertion","internal/oraclematcher","internal/testingtsupport","matchers","matchers/support/goraph/bipartitegraph","matchers/support/goraph/edge","matchers/support/goraph/node","matchers/support/goraph/util","types"]
   revision = "c893efa28eb45626cdaa76c9f653b62488858837"
   version = "v1.2.0"
 
@@ -66,6 +60,12 @@
   packages = ["."]
   revision = "5ccdfb18c776b740aecaf085c4d9a2779199c279"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
 
 [[projects]]
   branch = "master"
@@ -148,6 +148,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "82f15c2c6388569f8180431cfa71ce867a14adc26ce8ac665ea407394c798999"
+  inputs-digest = "4c48912be0bdb699c1fa95704dde64dfce6f74ed37d6edd7ee8b90003106613a"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -16,13 +16,13 @@ var _ = Describe("ParseEnvFile", func() {
 			LOG=*:debug,xxx:info,sd:info,cache:info,db:info
 		`
 
-		vars, err := ParseEnvFile(strings.NewReader(envFile))
+		env, err := ParseEnvFile(strings.NewReader(envFile))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(vars).To(Equal([]string{
-			"NAMESPACE=production",
-			"FOO_URL=file://$GOPATH/src/github.com/foo/bar",
-			"ETCD_ENDPOINT=localhost:2379",
-			"LOG=*:debug,xxx:info,sd:info,cache:info,db:info",
+		Expect(env).To(Equal(Environment{
+			"NAMESPACE":     "production",
+			"FOO_URL":       "file://$GOPATH/src/github.com/foo/bar",
+			"ETCD_ENDPOINT": "localhost:2379",
+			"LOG":           "*:debug,xxx:info,sd:info,cache:info,db:info",
 		}))
 	})
 
@@ -33,11 +33,11 @@ var _ = Describe("ParseEnvFile", func() {
 			FOO=bar
 		`
 
-		vars, err := ParseEnvFile(strings.NewReader(envFile))
+		env, err := ParseEnvFile(strings.NewReader(envFile))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(vars).To(Equal([]string{
-			"NAMESPACE=production",
-			"FOO=bar",
+		Expect(env).To(Equal(Environment{
+			"NAMESPACE": "production",
+			"FOO":       "bar",
 		}))
 	})
 
@@ -51,12 +51,12 @@ var _ = Describe("ParseEnvFile", func() {
 			BAZ=BLUP
 		`
 
-		vars, err := ParseEnvFile(strings.NewReader(envFile))
+		env, err := ParseEnvFile(strings.NewReader(envFile))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(vars).To(Equal([]string{
-			"NAMESPACE=production",
-			"FOO=BAR",
-			"BAZ=BLUP",
+		Expect(env).To(Equal(Environment{
+			"NAMESPACE": "production",
+			"FOO":       "BAR",
+			"BAZ":       "BLUP",
 		}))
 	})
 
@@ -66,11 +66,30 @@ var _ = Describe("ParseEnvFile", func() {
 			"FOO=bar  \t",
 		}, "\n")
 
-		vars, err := ParseEnvFile(strings.NewReader(envFile))
+		env, err := ParseEnvFile(strings.NewReader(envFile))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(vars).To(Equal([]string{
-			"NAMESPACE=production",
-			"FOO=bar",
+		Expect(env).To(Equal(Environment{
+			"NAMESPACE": "production",
+			"FOO":       "bar",
 		}))
+	})
+})
+
+var _ = Describe("Environment", func() {
+	Describe("Merge", func() {
+		It("should add all variables from the other env", func() {
+			env := Environment{"FOO": "bar"}
+			env = env.Merge(Environment{"XXX": "yyy"})
+			Expect(env).To(Equal(Environment{
+				"FOO": "bar",
+				"XXX": "yyy",
+			}))
+		})
+
+		It("should not overwrite any existing variables", func() {
+			env := Environment{"FOO": "bar"}
+			env = env.Merge(Environment{"FOO": "baz"})
+			Expect(env).To(Equal(Environment{"FOO": "bar"}))
+		})
 	})
 })

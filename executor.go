@@ -1,9 +1,8 @@
 package prox
 
 import (
-	"fmt"
-
 	"context"
+	"fmt"
 
 	"go.uber.org/zap"
 )
@@ -14,8 +13,8 @@ const (
 	statusInterrupted
 )
 
-type status int
-
+// An Executor manages a set of processes. It is responsible for running them
+// concurrently and waits until they have finished or an error occurs.
 type Executor struct {
 	log      *zap.Logger
 	running  map[string]Process
@@ -28,13 +27,18 @@ type message struct {
 	err    error
 }
 
+type status int
+
+// NewExecutor creates a new Executor.
 func NewExecutor() *Executor {
 	return &Executor{
 		log: logger(""),
 	}
 }
 
-// Start starts all processes and blocks all tasks processes finish.
+// Start starts all processes and blocks until all processes have finished or
+// the context is done (e.g. canceled). If a process crashes or the context is
+// canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
 	ctx, cancel := context.WithCancel(ctx)
 	e.startAll(ctx, processes)
