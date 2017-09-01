@@ -50,7 +50,6 @@ var _ = Describe("shellProcess", func() {
 				name:   "test",
 				script: testProcessScript("http", port),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
-				logger: log.Named("http_server"),
 			}
 
 			httpRequest := func() int {
@@ -73,7 +72,7 @@ var _ = Describe("shellProcess", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx)
+				p.Run(ctx, log.Named("http_server"))
 			}()
 
 			Eventually(httpRequest).Should(Equal(http.StatusOK), "should eventually answer with status code 200")
@@ -85,7 +84,6 @@ var _ = Describe("shellProcess", func() {
 				name:   "test",
 				script: testProcessScript("echo", "hello", "world"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
-				logger: log.Named("process"),
 				writer: w,
 			}
 
@@ -94,7 +92,7 @@ var _ = Describe("shellProcess", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx)
+				p.Run(ctx, log.Named("process"))
 			}()
 
 			Eventually(w).Should(Say(`hello`))
@@ -107,7 +105,6 @@ var _ = Describe("shellProcess", func() {
 				name:   "test",
 				script: testProcessScript("echo", "-stderr", "hello", "world"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
-				logger: log.Named("process"),
 				writer: w,
 			}
 
@@ -116,7 +113,7 @@ var _ = Describe("shellProcess", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx)
+				p.Run(ctx, log.Named("process"))
 			}()
 
 			Eventually(w).Should(Say(`hello`))
@@ -129,7 +126,6 @@ var _ = Describe("shellProcess", func() {
 			p := &shellProcess{
 				name:   "test",
 				script: testProcessScript("echo", "-env"),
-				logger: log.Named("process"),
 				writer: w,
 				env: NewEnv([]string{
 					"GO_WANT_HELPER_PROCESS=1",
@@ -143,7 +139,7 @@ var _ = Describe("shellProcess", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx)
+				p.Run(ctx, log.Named("process"))
 			}()
 
 			Eventually(w).Should(Say(`FOO=bar`))
@@ -155,7 +151,6 @@ var _ = Describe("shellProcess", func() {
 			p := &shellProcess{
 				name:   "test",
 				script: testProcessScript("echo", "$FOO"),
-				logger: log.Named("process"),
 				writer: w,
 				env: NewEnv([]string{
 					"GO_WANT_HELPER_PROCESS=1",
@@ -168,7 +163,7 @@ var _ = Describe("shellProcess", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx)
+				p.Run(ctx, log.Named("process"))
 			}()
 
 			Eventually(w).Should(Say(`it_worked!`))
@@ -179,7 +174,6 @@ var _ = Describe("shellProcess", func() {
 			p := &shellProcess{
 				name:   "test",
 				script: "FOO=nice BAR=cool " + testProcessScript("echo", "-env"),
-				logger: log.Named("process"),
 				writer: w,
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 			}
@@ -189,7 +183,7 @@ var _ = Describe("shellProcess", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx)
+				p.Run(ctx, log.Named("process"))
 			}()
 
 			Eventually(w).Should(Say(`BAR=cool`))
@@ -201,7 +195,6 @@ var _ = Describe("shellProcess", func() {
 			p := &shellProcess{
 				name:   "test",
 				script: `FOO="Hello World" ` + testProcessScript("echo", "-env"),
-				logger: log.Named("process"),
 				writer: w,
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 			}
@@ -211,7 +204,7 @@ var _ = Describe("shellProcess", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx)
+				p.Run(ctx, log.Named("process"))
 			}()
 
 			Eventually(w).Should(Say(`FOO=Hello World`))
@@ -222,7 +215,6 @@ var _ = Describe("shellProcess", func() {
 				p := &shellProcess{
 					name:   "test",
 					script: testProcessScript("echo", "-block"),
-					logger: log.Named("process"),
 					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 				}
 
@@ -231,7 +223,7 @@ var _ = Describe("shellProcess", func() {
 				go func() {
 					defer GinkgoRecover()
 					sync <- true
-					p.Run(ctx)
+					p.Run(ctx, log.Named("process"))
 					sync <- true
 				}()
 
@@ -244,7 +236,6 @@ var _ = Describe("shellProcess", func() {
 				p := &shellProcess{
 					name:   "test",
 					script: testProcessScript("echo", "-block", "-ignoreSIGINT"),
-					logger: log.Named("process"),
 					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 				}
 
@@ -253,7 +244,7 @@ var _ = Describe("shellProcess", func() {
 				go func() {
 					defer GinkgoRecover()
 					sync <- true
-					p.Run(ctx)
+					p.Run(ctx, log.Named("process"))
 					sync <- true
 				}()
 

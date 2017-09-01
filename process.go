@@ -19,14 +19,13 @@ import (
 // Executor.
 type Process interface {
 	Name() string
-	Run(context.Context) error
+	Run(context.Context, *zap.Logger) error
 }
 
 type shellProcess struct {
 	name   string
 	script string
 	env    Environment
-	logger *zap.Logger
 	writer io.Writer
 
 	interruptTimeout time.Duration
@@ -54,15 +53,15 @@ func (p *shellProcess) Name() string {
 
 // Run starts the shell process and blocks until it finishes or the context is
 // done.
-func (p *shellProcess) Run(ctx context.Context) error {
+func (p *shellProcess) Run(ctx context.Context, logger *zap.Logger) error {
 	p.mu.Lock()
 
-	if p.logger == nil {
-		p.logger = zap.NewNop()
+	if logger == nil {
+		logger = zap.NewNop()
 	}
 
 	commandLine := p.buildCommandLine()
-	p.logger.Debug("Starting process",
+	logger.Debug("Starting process",
 		zap.String("script", commandLine),
 		zap.Strings("env", p.env.List()),
 	)
@@ -81,10 +80,10 @@ func (p *shellProcess) Run(ctx context.Context) error {
 		return fmt.Errorf("could not start shell task: %s", err)
 	}
 
-	return p.wait(ctx)
+	return p.wait(ctx, logger)
 }
 
-func (p *shellProcess) wait(ctx context.Context) error {
+func (p *shellProcess) wait(ctx context.Context, logger *zap.Logger) error {
 	done := make(chan error)
 	go func() {
 		done <- p.cmd.Wait()
@@ -94,21 +93,21 @@ func (p *shellProcess) wait(ctx context.Context) error {
 	case err := <-done:
 		return err
 	case <-ctx.Done():
-		p.logger.Info("Sending interrupt signal", zap.Duration("timeout", p.interruptTimeout))
+		logger.Info("Sending interrupt signal", zap.Duration("timeout", p.interruptTimeout))
 		err := p.cmd.Process.Signal(syscall.SIGINT)
 		if err != nil {
-			p.logger.Error("Failed to send SIGINT to process", zap.Error(err))
+			logger.Error("Failed to send SIGINT to process", zap.Error(err))
 			p.cmd.Process.Kill()
 			return ctx.Err()
 		}
 
 		select {
 		case <-done:
-			p.logger.Info("Process interrupted successfully", zap.Error(err))
+			logger.Info("Process interrupted successfully", zap.Error(err))
 		case <-time.After(p.interruptTimeout):
 			err := p.cmd.Process.Kill()
 			if err != nil {
-				p.logger.Error("Failed to kill process", zap.Error(err))
+				logger.Error("Failed to kill process", zap.Error(err))
 			}
 		}
 

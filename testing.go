@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"go.uber.org/zap"
 )
 
 type TestProcess struct {
@@ -26,7 +28,7 @@ func (t *TestProcess) String() string {
 	return t.Name()
 }
 
-func (t *TestProcess) Run(ctx context.Context) error { // TODO: use ctx
+func (t *TestProcess) Run(ctx context.Context, _ *zap.Logger) error { // TODO: use ctx
 	if t.started {
 		return errors.New("started multiple times")
 	}

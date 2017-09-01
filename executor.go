@@ -69,8 +69,10 @@ func (e *Executor) run(ctx context.Context, p Process) {
 		}
 	}()
 
-	e.log.Info("Starting process", zap.String("name", p.Name()))
-	err := p.Run(ctx)
+	name := p.Name()
+	e.log.Info("Starting process", zap.String("name", name))
+	logger := e.log.Named(name)
+	err := p.Run(ctx, logger)
 
 	var result status
 	switch {
@@ -97,7 +99,7 @@ func (e *Executor) waitForAll(interruptAll func()) {
 		case statusSuccess:
 			e.log.Info("Task finished successfully", zap.String("name", message.p.Name()))
 		case statusInterrupted:
-			e.log.Error("Task was interrupted", zap.String("name", message.p.Name()), zap.Error(message.err))
+			e.log.Info("Task was interrupted", zap.String("name", message.p.Name()))
 		case statusError:
 			e.log.Error("Task error", zap.String("name", message.p.Name()), zap.Error(message.err))
 			interruptAll()
