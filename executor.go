@@ -3,6 +3,8 @@ package prox
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 
 	"go.uber.org/zap"
 )
@@ -19,6 +21,8 @@ type Executor struct {
 	log      *zap.Logger
 	running  map[string]Process
 	messages chan message
+	output   io.Writer
+	colors   *colorProvider
 }
 
 type message struct {
@@ -32,7 +36,9 @@ type status int
 // NewExecutor creates a new Executor.
 func NewExecutor() *Executor {
 	return &Executor{
-		log: logger(""),
+		log:    logger(""),
+		output: os.Stdout,
+		colors: newColorProvider(),
 	}
 }
 
@@ -71,8 +77,15 @@ func (e *Executor) run(ctx context.Context, p Process) {
 
 	name := p.Name()
 	e.log.Info("Starting process", zap.String("name", name))
+
+	output := &processOutput{
+		Writer: e.output,
+		name:   name,
+		color:  e.colors.next(),
+	}
+
 	logger := e.log.Named(name)
-	err := p.Run(ctx, logger)
+	err := p.Run(ctx, output, logger)
 
 	var result status
 	switch {
@@ -105,4 +118,18 @@ func (e *Executor) waitForAll(interruptAll func()) {
 			interruptAll()
 		}
 	}
+}
+
+type processOutput struct {
+	io.Writer
+	name  string
+	color color
+}
+
+func (o *processOutput) Write(p []byte) (int, error) {
+	fmt.Fprint(o.Writer, o.color)
+	n, err := o.Writer.Write(p)
+	fmt.Fprint(o.Writer, DefaultStyle)
+
+	return n, err
 }

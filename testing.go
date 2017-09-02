@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"go.uber.org/zap"
 )
@@ -28,7 +29,7 @@ func (t *TestProcess) String() string {
 	return t.Name()
 }
 
-func (t *TestProcess) Run(ctx context.Context, _ *zap.Logger) error { // TODO: use ctx
+func (t *TestProcess) Run(ctx context.Context, _ io.Writer, _ *zap.Logger) error { // TODO: use ctx
 	if t.started {
 		return errors.New("started multiple times")
 	}

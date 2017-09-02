@@ -19,14 +19,13 @@ import (
 // Executor.
 type Process interface {
 	Name() string
-	Run(context.Context, *zap.Logger) error
+	Run(context.Context, io.Writer, *zap.Logger) error
 }
 
 type shellProcess struct {
 	name   string
 	script string
 	env    Environment
-	writer io.Writer
 
 	interruptTimeout time.Duration
 
@@ -52,8 +51,9 @@ func (p *shellProcess) Name() string {
 }
 
 // Run starts the shell process and blocks until it finishes or the context is
-// done.
-func (p *shellProcess) Run(ctx context.Context, logger *zap.Logger) error {
+// done. The given io.Writer receives all output (both stdout and stderr) of the
+// process.
+func (p *shellProcess) Run(ctx context.Context, output io.Writer, logger *zap.Logger) error {
 	p.mu.Lock()
 
 	if logger == nil {
@@ -61,16 +61,13 @@ func (p *shellProcess) Run(ctx context.Context, logger *zap.Logger) error {
 	}
 
 	commandLine := p.buildCommandLine()
-	logger.Debug("Starting process",
-		zap.String("script", commandLine),
-		zap.Strings("env", p.env.List()),
-	)
+	logger.Debug("Starting process", zap.String("script", commandLine))
 
 	cmdParts := strings.Fields(commandLine)
 	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 
-	p.cmd.Stdout = p.writer
-	p.cmd.Stderr = p.writer
+	p.cmd.Stdout = output
+	p.cmd.Stderr = output
 	p.cmd.Env = p.env.List()
 
 	err := p.cmd.Start()
