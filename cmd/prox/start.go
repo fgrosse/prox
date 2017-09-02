@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"bitbucket.com/corvan/prox"
 	"github.com/spf13/cobra"
@@ -18,9 +21,22 @@ var startCmd = &cobra.Command{
 }
 
 func run(cmd *cobra.Command, args []string) {
-	ctx := context.TODO()
+	ctx := cliContext()
 	err := prox.Run(ctx, ".env", "Procfile") // TODO: use flags
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func cliContext() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs
+		cancel()
+	}()
+
+	return ctx
 }
