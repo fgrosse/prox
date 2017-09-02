@@ -5,12 +5,50 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
+	"github.com/fgrosse/zaptest"
 	"go.uber.org/zap"
 )
 
+type TestExecutor struct {
+	*Executor
+	Error        error
+	mu           sync.RWMutex
+	executorDone bool
+}
+
+func TestNewExecutor(w io.Writer) *TestExecutor {
+	e := &TestExecutor{Executor: NewExecutor()}
+	e.log = zaptest.LoggerWriter(w)
+
+	return e
+}
+
+func (e *TestExecutor) Run(processes ...Process) {
+	e.mu.Lock()
+	e.executorDone = false
+	e.mu.Unlock()
+
+	e.log.Info("Executor starting")
+	ctx := context.Background()
+	e.Error = e.Executor.Run(ctx, processes)
+	e.log.Info("Executor finished")
+
+	e.mu.Lock()
+	e.executorDone = true
+	e.mu.Unlock()
+}
+
+func (e *TestExecutor) IsDone() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.executorDone
+}
+
 type TestProcess struct {
 	name        string // TODO: make settable from the outside
+	mu          sync.Mutex
 	started     bool
 	interrupted bool
 
@@ -30,6 +68,7 @@ func (t *TestProcess) String() string {
 }
 
 func (t *TestProcess) Run(ctx context.Context, _ io.Writer, _ *zap.Logger) error { // TODO: use ctx
+	t.mu.Lock()
 	if t.started {
 		return errors.New("started multiple times")
 	}
@@ -39,13 +78,16 @@ func (t *TestProcess) Run(ctx context.Context, _ io.Writer, _ *zap.Logger) error
 	t.finish = make(chan chan bool)
 	t.fail = make(chan chan bool)
 	t.panic = make(chan chan bool)
+	t.mu.Unlock()
 
 	select {
 	case <-ctx.Done():
 		if t.interruptFinisher != nil {
 			<-t.interruptFinisher
 		}
+		t.mu.Lock()
 		t.interrupted = true
+		t.mu.Unlock()
 		return ctx.Err()
 	case c := <-t.finish:
 		c <- true
@@ -72,21 +114,27 @@ func (t *TestProcess) Panic() {
 }
 
 func (t *TestProcess) signal(c chan chan bool) {
-	sync := make(chan bool)
+	syncChan := make(chan bool)
 	select {
-	case c <- sync:
+	case c <- syncChan:
 		// sync with the TestProcess.Run goroutine
-		<-sync
+		<-syncChan
 	default:
 		// process is not running
 	}
 }
 
 func (t *TestProcess) HasBeenStarted() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	return t.started
 }
 
 func (t *TestProcess) HasBeenInterrupted() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	return t.interrupted
 }
 
