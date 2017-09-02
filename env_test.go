@@ -92,4 +92,20 @@ var _ = Describe("Environment", func() {
 			Expect(env).To(Equal(Environment{"FOO": "bar"}))
 		})
 	})
+
+	Describe("List", func() {
+		It("should return all variables as list of key=value pairs", func() {
+			env := Environment{"FOO": "bar", "BAZ": "..."}
+			ee := env.List()
+			Expect(ee).To(HaveLen(2))
+			Expect(ee).To(ContainElement("FOO=bar"))
+			Expect(ee).To(ContainElement("BAZ=..."))
+		})
+
+		It("should not overwrite any existing variables", func() {
+			env := Environment{"FOO": "bar"}
+			env = env.Merge(Environment{"FOO": "baz"})
+			Expect(env).To(Equal(Environment{"FOO": "bar"}))
+		})
+	})
 })

@@ -74,7 +74,7 @@ func (e Environment) SetAll(vars []string) {
 
 // List returns all variables of e as a list of key=value pairs.
 func (e Environment) List() []string {
-	vars := make([]string, len(e))
+	vars := make([]string, 0, len(e))
 	for key, value := range e {
 		vars = append(vars, fmt.Sprintf("%s=%s", key, value))
 	}
