@@ -8,15 +8,15 @@ import (
 type color string
 
 const (
-	DefaultStyle   color = "\x1b[0m"
-	GreenColor     color = "\x1b[32m"
-	YellowColor    color = "\x1b[33m"
-	LightBlueColor color = "\x1b[34m"
-	PurpleColor    color = "\x1b[35m"
-	CyanColor      color = "\x1b[36m"
-	LightGrayColor color = "\x1b[37m"
-	GrayColor      color = "\x1b[90m"
-	RedColor       color = "\x1b[91m"
+	colorDefault   color = "\x1b[0m"
+	colorGreen     color = "\x1b[32m"
+	colorYellow    color = "\x1b[33m"
+	colorLightBlue color = "\x1b[34m"
+	colorPurple    color = "\x1b[35m"
+	colorCyan      color = "\x1b[36m"
+	colorLightGray color = "\x1b[37m"
+	colorGray      color = "\x1b[90m"
+	colorRed       color = "\x1b[91m"
 )
 
 type colorProvider struct {
@@ -26,14 +26,8 @@ type colorProvider struct {
 
 func newColorProvider() *colorProvider {
 	all := []color{
-		GreenColor,
-		YellowColor,
-		LightBlueColor,
-		PurpleColor,
-		CyanColor,
-		LightGrayColor,
-		GrayColor,
-		RedColor,
+		colorGreen, colorYellow, colorLightBlue, colorPurple,
+		colorCyan, colorLightGray, colorGray, colorRed,
 	}
 
 	colors := make([]color, len(all))

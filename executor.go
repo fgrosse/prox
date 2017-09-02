@@ -129,7 +129,7 @@ type processOutput struct {
 func (o *processOutput) Write(p []byte) (int, error) {
 	fmt.Fprint(o.Writer, o.color)
 	n, err := o.Writer.Write(p)
-	fmt.Fprint(o.Writer, DefaultStyle)
+	fmt.Fprint(o.Writer, colorDefault)
 
 	return n, err
 }
