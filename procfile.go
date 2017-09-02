@@ -17,7 +17,7 @@ func ParseProcFile(reader io.Reader, env Environment) ([]Process, error) {
 	var processes []Process
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" {
+		if line == "" || line[0] == '#' {
 			continue
 		}
 

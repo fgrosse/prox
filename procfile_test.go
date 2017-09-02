@@ -34,6 +34,17 @@ var _ = Describe("ParseProcFile", func() {
 			Expect(processes).To(ContainShellTask("foo", "test"))
 		})
 
+		It("should ignore commented lines", func() {
+			content := `
+				#redis: bin/redis-server conf/redis.conf
+				server: start_server.sh
+			`
+			processes, err := ParseProcFile(strings.NewReader(content), Environment{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(processes).To(HaveLen(1))
+			Expect(processes).To(ContainShellTask("server", "start_server.sh"))
+		})
+
 		Describe("setting environment variables", func() {
 			It("should pass the given environment to all created shell tasks", func() {
 				env := Environment{
