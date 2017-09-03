@@ -79,18 +79,6 @@ var _ = Describe("Executor", func() {
 			p2.FinishInterrupt()
 			Eventually(executor.IsDone).Should(BeTrue(), "executor should return when p2 is done")
 		})
-
-		It("should interrupt all other processes if one process panics", func() {
-			p1 := &TestProcess{name: "p1"}
-			p2 := &TestProcess{name: "p2"}
-
-			go executor.Run(p1, p2)
-			EventuallyAllProcessesShouldHaveStarted(p1, p2)
-
-			p1.Panic()
-			Eventually(p2.HasBeenInterrupted).Should(BeTrue())
-			Eventually(executor.IsDone).Should(BeTrue())
-		})
 	})
 })
 

@@ -54,7 +54,6 @@ type TestProcess struct {
 
 	finish chan chan bool // bool instead of struct{} for better readability of test code
 	fail   chan chan bool
-	panic  chan chan bool
 
 	interruptFinisher chan bool // to optionally block on Interrupt calls
 }
@@ -77,7 +76,6 @@ func (t *TestProcess) Run(ctx context.Context, _ io.Writer, _ *zap.Logger) error
 	t.interrupted = false
 	t.finish = make(chan chan bool)
 	t.fail = make(chan chan bool)
-	t.panic = make(chan chan bool)
 	t.mu.Unlock()
 
 	select {
@@ -95,9 +93,6 @@ func (t *TestProcess) Run(ctx context.Context, _ io.Writer, _ *zap.Logger) error
 	case c := <-t.fail:
 		c <- true
 		return fmt.Errorf("TestProcess simulated a failure")
-	case c := <-t.panic:
-		c <- true
-		panic(fmt.Errorf("TestProcess simulated a panic"))
 	}
 }
 
@@ -107,10 +102,6 @@ func (t *TestProcess) Finish() {
 
 func (t *TestProcess) Fail() {
 	t.signal(t.fail)
-}
-
-func (t *TestProcess) Panic() {
-	t.signal(t.panic)
 }
 
 func (t *TestProcess) signal(c chan chan bool) {

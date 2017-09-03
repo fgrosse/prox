@@ -65,16 +65,6 @@ func (e *Executor) startAll(ctx context.Context, pp []Process) {
 }
 
 func (e *Executor) run(ctx context.Context, p Process) {
-	defer func() {
-		if r := recover(); r != nil {
-			err, ok := r.(error)
-			if !ok {
-				err = fmt.Errorf("%v", e)
-			}
-			e.messages <- message{p, statusError, err}
-		}
-	}()
-
 	name := p.Name()
 	e.log.Info("Starting process", zap.String("name", name))
 
