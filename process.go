@@ -90,9 +90,14 @@ func (p *shellProcess) wait(ctx context.Context, logger *zap.Logger) error {
 	case err := <-done:
 		return err
 	case <-ctx.Done():
+		if p.cmd.ProcessState != nil && p.cmd.ProcessState.Exited() {
+			// There is nothing to do anymore so we can return early.
+			return ctx.Err()
+		}
+
 		logger.Info("Sending interrupt signal", zap.Duration("timeout", p.interruptTimeout))
 		err := p.cmd.Process.Signal(syscall.SIGINT)
-		if err != nil {
+		if err != nil && err.Error() != "os: process already finished" { // TODO: find out why a process may have exited early at this point :/
 			logger.Error("Failed to send SIGINT to process", zap.Error(err))
 			p.cmd.Process.Kill()
 			return ctx.Err()
