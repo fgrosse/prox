@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Run(ctx context.Context, envFilePath, procFilePath string) error {
+func Run(ctx context.Context, debug bool, envFilePath, procFilePath string) error {
 	f, err := os.Open(envFilePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to open env file")
@@ -32,6 +32,6 @@ func Run(ctx context.Context, envFilePath, procFilePath string) error {
 		return err
 	}
 
-	e := NewExecutor()
+	e := NewExecutor(debug)
 	return e.Run(ctx, pp)
 }

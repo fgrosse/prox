@@ -29,10 +29,12 @@ type message struct {
 
 type status int
 
-// NewExecutor creates a new Executor.
-func NewExecutor() *Executor {
+// NewExecutor creates a new Executor. The debug flag controls whether debug
+// logging should be activated. If debug is false then only warnings and errors
+// will be logged.
+func NewExecutor(debug bool) *Executor {
 	return &Executor{
-		log:    logger(""),
+		log:    logger(debug),
 		output: newOutput(),
 	}
 }
@@ -77,7 +79,7 @@ func (e *Executor) run(ctx context.Context, p Process, longestName int) {
 	e.log.Info("Starting process", zap.String("name", name))
 
 	output := e.output.next(name, longestName)
-	logger := e.log.Named(name)
+	logger := e.log.With(zap.String("process", name))
 	err := p.Run(ctx, output, logger)
 
 	var result status

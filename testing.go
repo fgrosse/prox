@@ -19,7 +19,7 @@ type TestExecutor struct {
 }
 
 func TestNewExecutor(w io.Writer) *TestExecutor {
-	e := &TestExecutor{Executor: NewExecutor()}
+	e := &TestExecutor{Executor: NewExecutor(true)}
 	e.log = zaptest.LoggerWriter(w)
 
 	return e

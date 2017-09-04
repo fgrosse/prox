@@ -20,7 +20,11 @@ to quickly create a Cobra application.`,
 	Run: run,
 }
 
+var debug bool
+
 func main() {
+	cmd.PersistentFlags().BoolVarP(&debug, "verbose", "v", false, "enable debug logging")
+
 	viper.AutomaticEnv()
 
 	if err := cmd.Execute(); err != nil {

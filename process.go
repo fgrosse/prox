@@ -61,7 +61,7 @@ func (p *shellProcess) Run(ctx context.Context, output io.Writer, logger *zap.Lo
 	}
 
 	commandLine := p.buildCommandLine()
-	logger.Debug("Starting process", zap.String("script", commandLine))
+	logger.Debug("Starting new shell process", zap.String("script", commandLine))
 
 	cmdParts := strings.Fields(commandLine)
 	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)

@@ -22,7 +22,7 @@ var startCmd = &cobra.Command{
 
 func run(cmd *cobra.Command, args []string) {
 	ctx := cliContext()
-	err := prox.Run(ctx, ".env", "Procfile") // TODO: use flags
+	err := prox.Run(ctx, debug, ".env", "Procfile") // TODO: use flags
 	if err != nil {
 		log.Fatal(err)
 	}
