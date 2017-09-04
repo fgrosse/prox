@@ -341,7 +341,7 @@ func echoProcess(args []string) {
 	if *blocking {
 		fmt.Println("Blocking..")
 		c := make(chan os.Signal, 1)
-		signal.Reset(syscall.SIGINT) // take control from test runner
+		signal.Reset(os.Interrupt, os.Kill) // take control from test runner
 		signal.Notify(c)
 
 		for {
