@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TODO: write tests
 func Run(ctx context.Context, envFilePath, procFilePath string) error {
 	f, err := os.Open(envFilePath)
 	if err != nil {

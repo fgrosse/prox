@@ -2,9 +2,6 @@ package prox
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"os"
 
 	"go.uber.org/zap"
 )
@@ -21,8 +18,7 @@ type Executor struct {
 	log      *zap.Logger
 	running  map[string]Process
 	messages chan message
-	output   io.Writer
-	colors   *colorProvider
+	output   *output
 }
 
 type message struct {
@@ -37,13 +33,12 @@ type status int
 func NewExecutor() *Executor {
 	return &Executor{
 		log:    logger(""),
-		output: os.Stdout,
-		colors: newColorProvider(),
+		output: newOutput(),
 	}
 }
 
-// Start starts all processes and blocks until all processes have finished or
-// the context is done (e.g. canceled). If a process crashes or the context is
+// Run starts all processes and blocks until all processes have finished or the
+// context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
 	ctx, cancel := context.WithCancel(ctx)
@@ -58,22 +53,30 @@ func (e *Executor) startAll(ctx context.Context, pp []Process) {
 	e.running = map[string]Process{}
 	e.messages = make(chan message)
 
+	s := longestName(pp)
+
 	for _, p := range pp {
 		e.running[p.Name()] = p
-		go e.run(ctx, p)
+		go e.run(ctx, p, len(s))
 	}
 }
 
-func (e *Executor) run(ctx context.Context, p Process) {
+func longestName(pp []Process) string {
+	var longest string
+	for _, p := range pp {
+		if n := p.Name(); len(n) > len(longest) {
+			longest = n
+		}
+	}
+
+	return longest
+}
+
+func (e *Executor) run(ctx context.Context, p Process, longestName int) {
 	name := p.Name()
 	e.log.Info("Starting process", zap.String("name", name))
 
-	output := &processOutput{
-		Writer: e.output,
-		name:   name,
-		color:  e.colors.next(),
-	}
-
+	output := e.output.next(name, longestName)
 	logger := e.log.Named(name)
 	err := p.Run(ctx, output, logger)
 
@@ -108,18 +111,4 @@ func (e *Executor) waitForAll(interruptAll func()) {
 			interruptAll()
 		}
 	}
-}
-
-type processOutput struct {
-	io.Writer
-	name  string
-	color color
-}
-
-func (o *processOutput) Write(p []byte) (int, error) {
-	fmt.Fprint(o.Writer, o.color)
-	n, err := o.Writer.Write(p)
-	fmt.Fprint(o.Writer, colorDefault)
-
-	return n, err
 }

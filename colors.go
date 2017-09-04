@@ -1,6 +1,7 @@
 package prox
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 )
@@ -18,6 +19,10 @@ const (
 	colorGray      color = "\x1b[90m"
 	colorRed       color = "\x1b[91m"
 )
+
+func (c color) apply(s string) string {
+	return fmt.Sprint(c, s, colorDefault)
+}
 
 type colorProvider struct {
 	mu     sync.Mutex
