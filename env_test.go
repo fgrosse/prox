@@ -73,6 +73,40 @@ var _ = Describe("ParseEnvFile", func() {
 			"FOO":       "bar",
 		}))
 	})
+
+	It("should not remove escaped \\n strings at the end", func() {
+		envFile := strings.Join([]string{
+			`CASE_1=wtf1\n`,
+			`CASE_2=wtf2\n\r`,
+			`CASE_3=wtf2\r\n`,
+			`CASE_4=wtf2\r`,
+		}, "\n")
+
+		env, err := ParseEnvFile(strings.NewReader(envFile))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(env).To(Equal(Environment{
+			"CASE_1": `wtf1\n`,
+			"CASE_2": `wtf2\n\r`,
+			"CASE_3": `wtf2\r\n`,
+			"CASE_4": `wtf2\r`,
+		}))
+	})
+
+	It("should support spaces in values", func() {
+		envFile := strings.Join([]string{
+			"FOO=some value that contains spaces",
+			"BAR=   spaces at the beginning or end shall be trimmed   ",
+		}, "\n")
+
+		env, err := ParseEnvFile(strings.NewReader(envFile))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(env).To(Equal(Environment{
+			"FOO": "some value that contains spaces",
+			"BAR": "spaces at the beginning or end shall be trimmed",
+		}))
+	})
+
+	PIt("should support quoting values for maximum flexibility")
 })
 
 var _ = Describe("Environment", func() {

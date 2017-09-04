@@ -56,7 +56,7 @@ func (e Environment) Set(s string) {
 		parts[1] = ""
 	}
 
-	e[parts[0]] = parts[1]
+	e[parts[0]] = strings.TrimSpace(parts[1])
 }
 
 // SetAll sets a list of key=value pairs on e.
