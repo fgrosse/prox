@@ -1,9 +1,9 @@
 package prox
 
 import (
+	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -16,16 +16,10 @@ import (
 // the started processes. Trimmed lines which start with a "#" or are generally
 // empty are ignored.
 func ParseEnvFile(r io.Reader) (Environment, error) {
-	content, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("could not read .env content: %s", err)
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-
 	env := Environment{}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	s := bufio.NewScanner(r)
+	for s.Scan() {
+		line := strings.TrimSpace(s.Text())
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
@@ -33,7 +27,7 @@ func ParseEnvFile(r io.Reader) (Environment, error) {
 		env.Set(line)
 	}
 
-	return env, nil
+	return env, s.Err()
 }
 
 // Environment is a set of key value pairs that are used to inject environment

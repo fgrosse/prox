@@ -1,29 +1,25 @@
 package prox
 
 import (
+	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 )
 
 func ParseProcFile(reader io.Reader, env Environment) ([]Process, error) {
-	content, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read Procfile content: %s", err)
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	s := bufio.NewScanner(reader)
 	var processes []Process
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
+	var i int
+	for s.Scan() {
+		line, i := strings.TrimSpace(s.Text()), i+1
 		if line == "" || line[0] == '#' {
 			continue
 		}
 
 		lineParts := strings.SplitN(line, ":", 2)
 		if len(lineParts) < 2 {
-			return processes, fmt.Errorf("invalid Procfile format at line %d: %s", i+1, line)
+			return processes, fmt.Errorf("invalid Procfile format at line %d: %s", i, line)
 		}
 
 		name := strings.TrimSpace(lineParts[0])
@@ -33,5 +29,5 @@ func ParseProcFile(reader io.Reader, env Environment) ([]Process, error) {
 	}
 
 	// TODO check if a task has been defined multiple times
-	return processes, nil
+	return processes, s.Err()
 }
