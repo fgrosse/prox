@@ -86,8 +86,18 @@ func (p *shellProcess) wait(ctx context.Context, logger *zap.Logger) error {
 		done <- p.cmd.Wait()
 	}()
 
+	// n.b. By default child processes are often started in the same
+	// process group as the parent. Under these circumstances the shell
+	// will send the signal to all processes, causing them to terminate on
+	// their own. We cannot rely on this behavior but we should not report
+	// an error if the process has already finished before we asked it to.
+
 	select {
 	case err := <-done:
+		if err != nil && strings.HasPrefix(err.Error(), "signal: ") {
+			// see note from above...
+			err = nil
+		}
 		return err
 	case <-ctx.Done():
 		if p.cmd.ProcessState != nil && p.cmd.ProcessState.Exited() {
@@ -96,8 +106,17 @@ func (p *shellProcess) wait(ctx context.Context, logger *zap.Logger) error {
 		}
 
 		logger.Info("Sending interrupt signal", zap.Duration("timeout", p.interruptTimeout))
+
+		/*
+			TODO: to kill all child processes as well try this:
+			group, err := os.FindProcess(-1 * p.Process.Pid)
+			if err == nil {
+				err = group.Signal(signal)
+			}
+		*/
+
 		err := p.cmd.Process.Signal(syscall.SIGINT)
-		if err != nil && err.Error() != "os: process already finished" { // TODO: find out why a process may have exited early at this point :/
+		if err != nil && err.Error() != "os: process already finished" {
 			logger.Error("Failed to send SIGINT to process", zap.Error(err))
 			p.cmd.Process.Kill()
 			return ctx.Err()
