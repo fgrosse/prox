@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"bitbucket.com/corvan/prox"
 	"github.com/spf13/cobra"
@@ -30,8 +31,7 @@ func run(cmd *cobra.Command, args []string) {
 func cliContext() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	sigs := make(chan os.Signal, 1)
-	signal.Reset(os.Interrupt, os.Kill)
-	signal.Notify(sigs, os.Interrupt, os.Kill)
+	signal.Notify(sigs, syscall.SIGALRM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigs
