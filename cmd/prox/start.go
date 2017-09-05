@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"bitbucket.com/corvan/prox"
+	"bitbucket.org/corvan/prox"
 	"github.com/spf13/cobra"
 )
 
