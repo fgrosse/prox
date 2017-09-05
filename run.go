@@ -7,31 +7,48 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Run(ctx context.Context, debug bool, envFilePath, procFilePath string) error {
-	f, err := os.Open(envFilePath)
+const (
+	StatusFailedProcess = 1
+	StatusBadEnvFile    = 2
+	StatusBadProcFile   = 3
+)
+
+func Run(ctx context.Context, debug bool, envFilePath, procFilePath string) (statusCode int, err error) {
+	env, err := environment(envFilePath)
 	if err != nil {
-		return errors.Wrap(err, "failed to open env file")
+		return StatusBadEnvFile, err
 	}
 
-	env, err := ParseEnvFile(f)
-	f.Close()
+	f, err := os.Open(procFilePath)
 	if err != nil {
-		return err
-	}
-
-	env = env.Merge(SystemEnv())
-
-	f, err = os.Open(procFilePath)
-	if err != nil {
-		return errors.Wrap(err, "failed to open Procfile")
+		return StatusBadProcFile, errors.Wrap(err, "failed to open Procfile")
 	}
 
 	pp, err := ParseProcFile(f, env)
 	f.Close()
 	if err != nil {
-		return err
+		return StatusBadProcFile, err
 	}
 
 	e := NewExecutor(debug)
-	return e.Run(ctx, pp)
+	return StatusFailedProcess, e.Run(ctx, pp)
+}
+
+func environment(path string) (Environment, error) {
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return SystemEnv(), nil
+	}
+
+	if err != nil {
+		return Environment{}, errors.Wrap(err, "failed to open env file")
+	}
+
+	env, err := ParseEnvFile(f)
+	f.Close()
+	if err != nil {
+		return Environment{}, err
+	}
+
+	return env.Merge(SystemEnv()), nil
 }

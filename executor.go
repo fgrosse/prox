@@ -3,6 +3,7 @@ package prox
 import (
 	"context"
 
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -45,8 +46,7 @@ func NewExecutor(debug bool) *Executor {
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
 	ctx, cancel := context.WithCancel(ctx)
 	e.startAll(ctx, processes)
-	e.waitForAll(cancel)
-	return nil
+	return e.waitForAll(cancel)
 }
 
 func (e *Executor) startAll(ctx context.Context, pp []Process) {
@@ -55,15 +55,14 @@ func (e *Executor) startAll(ctx context.Context, pp []Process) {
 	e.running = map[string]Process{}
 	e.messages = make(chan message)
 
-	s := longestName(pp)
-
+	n := longestName(pp)
 	for _, p := range pp {
 		e.running[p.Name()] = p
-		go e.run(ctx, p, len(s))
+		go e.run(ctx, p, n)
 	}
 }
 
-func longestName(pp []Process) string {
+func longestName(pp []Process) int {
 	var longest string
 	for _, p := range pp {
 		if n := p.Name(); len(n) > len(longest) {
@@ -71,7 +70,12 @@ func longestName(pp []Process) string {
 		}
 	}
 
-	return longest
+	n := len(longest)
+	if n < 8 {
+		n = 8
+	}
+
+	return n
 }
 
 func (e *Executor) run(ctx context.Context, p Process, longestName int) {
@@ -95,7 +99,8 @@ func (e *Executor) run(ctx context.Context, p Process, longestName int) {
 	e.messages <- message{p: p, status: result, err: err}
 }
 
-func (e *Executor) waitForAll(interruptAll func()) {
+func (e *Executor) waitForAll(interruptAll func()) error {
+	var firstErr error
 	for len(e.running) > 0 {
 		e.log.Debug("Waiting for processes to complete", zap.Int("amount", len(e.running)))
 
@@ -110,7 +115,12 @@ func (e *Executor) waitForAll(interruptAll func()) {
 			e.log.Info("Task was interrupted", zap.String("name", message.p.Name()))
 		case statusError:
 			e.log.Error("Task error", zap.String("name", message.p.Name()), zap.Error(message.err))
+			if firstErr == nil {
+				firstErr = message.err
+			}
 			interruptAll()
 		}
 	}
+
+	return errors.Wrap(firstErr, "first error")
 }

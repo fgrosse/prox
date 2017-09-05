@@ -1,52 +1,52 @@
 package prox
 
 import (
-	"fmt"
-	"math/rand"
 	"sync"
 )
 
 type color string
 
 const (
-	colorDefault   color = "\x1b[0m"
-	colorGreen     color = "\x1b[32m"
-	colorYellow    color = "\x1b[33m"
-	colorLightBlue color = "\x1b[34m"
-	colorPurple    color = "\x1b[35m"
-	colorCyan      color = "\x1b[36m"
-	colorLightGray color = "\x1b[37m"
-	colorGray      color = "\x1b[90m"
-	colorRed       color = "\x1b[91m"
+	colorDefault color = "\x1b[0m"
+	colorBold    color = "\x1b[1m"
+	colorRed     color = "\x1b[31m"
+	colorGreen   color = "\x1b[32m"
+	colorYellow  color = "\x1b[33m"
+	colorBlue    color = "\x1b[34m"
+	colorMagenta color = "\x1b[35m"
+	colorCyan    color = "\x1b[36m"
+	colorWhite   color = "\x1b[37m"
 )
 
-func (c color) apply(s string) string {
-	return fmt.Sprint(c, s, colorDefault)
+// colors are all colors that are used to distinguish the output of all
+// processes. This list is ordered such that the first used color is first.
+var colors = []color{
+	// colorWhite, TODO: use for prox output
+	colorCyan,
+	colorYellow,
+	colorGreen,
+	colorMagenta,
+	colorRed,
+	colorBlue,
 }
 
 type colorProvider struct {
 	mu     sync.Mutex
 	colors []color
+	i      int
 }
 
 func newColorProvider() *colorProvider {
-	all := []color{
-		colorGreen, colorYellow, colorLightBlue, colorPurple,
-		colorCyan, colorLightGray, colorGray, colorRed,
-	}
-
-	colors := make([]color, len(all))
-	for i, j := range rand.Perm(len(all)) {
-		colors[i] = all[j]
-	}
-
 	return &colorProvider{colors: colors}
 }
 
 func (p *colorProvider) next() color {
 	p.mu.Lock()
-	c := p.colors[0]
-	p.colors = append(p.colors[1:], c)
+	c := p.colors[p.i]
+	p.i++
+	if p.i >= len(p.colors) {
+		p.i = 0
+	}
 	p.mu.Unlock()
 
 	return c

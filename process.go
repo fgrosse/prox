@@ -66,6 +66,8 @@ func (p *shellProcess) Run(ctx context.Context, output io.Writer, logger *zap.Lo
 	cmdParts := strings.Fields(commandLine)
 	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 
+	// TODO: add current PWD to PATH
+
 	p.cmd.Stdout = output
 	p.cmd.Stderr = output
 	p.cmd.Env = p.env.List()
@@ -115,6 +117,7 @@ func (p *shellProcess) wait(ctx context.Context, logger *zap.Logger) error {
 			}
 		*/
 
+		// TODO: this results in our child processes to receive SIGINT twice, due to the process group issue (e.g. visible in redis)
 		err := p.cmd.Process.Signal(syscall.SIGINT)
 		if err != nil && err.Error() != "os: process already finished" {
 			logger.Error("Failed to send SIGINT to process", zap.Error(err))

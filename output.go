@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 )
 
 type output struct {
@@ -24,7 +23,7 @@ func (o *output) next(name string, longestName int) *processOutput {
 	return &processOutput{
 		Writer: o.Writer,
 		name:   name,
-		format: fmt.Sprintf("%%s %%-%d.%ds %%s", longestName, longestName),
+		format: fmt.Sprintf("%%s %%-%d.%ds │%%s %%s", longestName, longestName),
 		color:  o.colors.next(),
 	}
 }
@@ -36,7 +35,6 @@ type processOutput struct {
 	color  color
 }
 
-// TODO: test lots of concurrent output from multiple processes
 func (o *processOutput) Write(p []byte) (int, error) {
 	msg := o.formatMsg(p)
 	_, err := fmt.Fprintln(o.Writer, msg) // TODO: synchronize writing
@@ -44,9 +42,18 @@ func (o *processOutput) Write(p []byte) (int, error) {
 }
 
 func (o *processOutput) formatMsg(p []byte) string {
-	return o.color.apply(fmt.Sprintf(o.format,
-		time.Now().Format("15:04:05"),
-		o.name,
-		bytes.TrimSpace(p),
-	))
+	msg := new(bytes.Buffer)
+	for _, line := range bytes.Split(bytes.TrimSpace(p), []byte("\n")) {
+		if msg.Len() > 0 {
+			msg.WriteString("\n")
+		}
+		fmt.Fprintf(msg, o.format,
+			colorBold+o.color,
+			o.name,
+			colorDefault,
+			line,
+		)
+	}
+
+	return msg.String()
 }

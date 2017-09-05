@@ -13,6 +13,7 @@ func logger(debug bool) *zap.Logger {
 		enc.AppendString(t.Format("15:04:05"))
 	}
 	conf.EncoderConfig.EncodeCaller = nil
+	conf.DisableStacktrace = true
 	conf.Level = zap.NewAtomicLevelAt(zap.WarnLevel)
 
 	if debug {

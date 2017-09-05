@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"bitbucket.com/corvan/prox"
 	"github.com/spf13/cobra"
@@ -20,12 +22,14 @@ var startCmd = &cobra.Command{
 	Run: run,
 }
 
-func run(cmd *cobra.Command, args []string) {
+func run(_ *cobra.Command, _ []string) {
+	log.SetFlags(0)
 	ctx := cliContext()
-	err := prox.Run(ctx, debug, ".env", "Procfile") // TODO: use flags
+	status, err := prox.Run(ctx, debug, ".env", "Procfile") // TODO: use flags
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("%s\tERROR\tprox\t%s", time.Now().Format("15:04:05"), err.Error()) // TODO: uniform logging
 	}
+	os.Exit(status)
 }
 
 func cliContext() context.Context {
@@ -34,7 +38,8 @@ func cliContext() context.Context {
 	signal.Notify(sigs, syscall.SIGALRM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		<-sigs
+		s := <-sigs
+		fmt.Println("received signal", s) // TODO: use synchronized output
 		cancel()
 	}()
 
