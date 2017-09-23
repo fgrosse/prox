@@ -11,7 +11,7 @@ const (
 	colorBlue    color = "\x1b[34m"
 	colorMagenta color = "\x1b[35m"
 	colorCyan    color = "\x1b[36m"
-	colorWhite   color = "\x1b[37m"
+	colorWhite   color = "\x1b[37m" // reserved for the prox output
 )
 
 type colorPalette struct {
@@ -21,7 +21,6 @@ type colorPalette struct {
 
 func newColorPalette() *colorPalette {
 	return &colorPalette{colors: []color{
-		// colorWhite, TODO: use for prox output
 		colorCyan,
 		colorYellow,
 		colorGreen,

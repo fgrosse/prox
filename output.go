@@ -11,28 +11,46 @@ import (
 
 // output provides synchronized and colored *processOutput instances.
 type output struct {
-	mu     sync.Mutex
-	writer io.Writer
-	colors *colorPalette
+	mu           sync.Mutex
+	writer       io.Writer
+	colors       *colorPalette
+	prefixLength int
 }
 
-func newOutput() *output {
+func newOutput(pp []Process) *output {
 	return &output{
-		writer: os.Stdout,
-		colors: newColorPalette(),
+		writer:       os.Stdout,
+		colors:       newColorPalette(),
+		prefixLength: longestName(pp),
 	}
 }
 
-// next creates a new *processOutput using the next color of the color palette.
-func (o *output) next(name string, longestName int) *processOutput {
-	c := o.colors.next()
-	return newProcessOutput(name, longestName, c, o)
+func longestName(pp []Process) int {
+	var longest string
+	for _, p := range pp {
+		if n := p.Name(); len(n) > len(longest) {
+			longest = n
+		}
+	}
+
+	n := len(longest)
+	if n < 8 {
+		n = 8
+	}
+
+	return n
 }
 
-func newProcessOutput(name string, longestName int, c color, w io.Writer) *processOutput {
-	name += strings.Repeat(" ", longestName-len(name))
+// next creates a new *processOutput using the next color of the color palette.
+func (o *output) next(name string) *processOutput {
+	c := o.colors.next()
+	return o.nextColored(name, c)
+}
+
+func (o *output) nextColored(name string, c color) *processOutput {
+	name += strings.Repeat(" ", o.prefixLength-len(name))
 	return &processOutput{
-		Writer: w,
+		Writer: o,
 		prefix: fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault),
 	}
 }

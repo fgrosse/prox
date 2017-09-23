@@ -14,7 +14,6 @@ type Executor struct {
 	log      *zap.Logger
 	running  map[string]Process
 	messages chan message
-	output   *output
 }
 
 // messages are passed to signal that a specific process has finished along with
@@ -40,8 +39,7 @@ const (
 // will be logged.
 func NewExecutor(debug bool) *Executor {
 	return &Executor{
-		debug:  debug,
-		output: newOutput(),
+		debug: debug,
 	}
 }
 
@@ -49,16 +47,16 @@ func NewExecutor(debug bool) *Executor {
 // context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
-	n := longestName(processes)
+	output := newOutput(processes)
 
 	if e.log == nil {
-		out := newProcessOutput("prox", n, colorWhite, e.output)
+		out := output.nextColored("prox", colorWhite)
 		e.log = logger(out, e.debug)
 	}
 
 	go e.monitorContext(ctx)
 	ctx, cancel := context.WithCancel(ctx)
-	e.startAll(ctx, processes, n)
+	e.startAll(ctx, processes, output)
 	return e.waitForAll(cancel)
 }
 
@@ -71,7 +69,7 @@ func (e *Executor) monitorContext(ctx context.Context) {
 
 // StartAll starts all processes in a separate goroutine and then returns
 // immediately.
-func (e *Executor) startAll(ctx context.Context, pp []Process, longestName int) {
+func (e *Executor) startAll(ctx context.Context, pp []Process, output *output) {
 	e.log.Info("Starting processes", zap.Int("amount", len(pp)))
 
 	e.running = map[string]Process{}
@@ -80,25 +78,9 @@ func (e *Executor) startAll(ctx context.Context, pp []Process, longestName int) 
 	for _, p := range pp {
 		name := p.Name()
 		e.running[name] = p
-		output := e.output.next(name, longestName)
+		output := output.next(name)
 		go e.run(ctx, p, output)
 	}
-}
-
-func longestName(pp []Process) int {
-	var longest string
-	for _, p := range pp {
-		if n := p.Name(); len(n) > len(longest) {
-			longest = n
-		}
-	}
-
-	n := len(longest)
-	if n < 8 {
-		n = 8
-	}
-
-	return n
 }
 
 // Run starts a single process and blocks until it has completed or failed.
