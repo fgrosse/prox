@@ -68,8 +68,6 @@ func (p *process) Run(ctx context.Context, output io.Writer, logger *zap.Logger)
 	cmdParts := strings.Fields(commandLine)
 	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 
-	// TODO: add current PWD to PATH
-
 	p.cmd.Stdout = output
 	p.cmd.Stderr = output
 	p.cmd.Env = p.env.List()

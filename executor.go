@@ -10,6 +10,7 @@ import (
 // An Executor manages a set of processes. It is responsible for running them
 // concurrently and waits until they have finished or an error occurs.
 type Executor struct {
+	debug    bool
 	log      *zap.Logger
 	running  map[string]Process
 	messages chan message
@@ -39,7 +40,7 @@ const (
 // will be logged.
 func NewExecutor(debug bool) *Executor {
 	return &Executor{
-		log:    logger(debug),
+		debug:  debug,
 		output: newOutput(),
 	}
 }
@@ -48,9 +49,16 @@ func NewExecutor(debug bool) *Executor {
 // context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
+	n := longestName(processes)
+
+	if e.log == nil {
+		out := newProcessOutput("prox", n, colorWhite, e.output)
+		e.log = logger(out, e.debug)
+	}
+
 	go e.monitorContext(ctx)
 	ctx, cancel := context.WithCancel(ctx)
-	e.startAll(ctx, processes)
+	e.startAll(ctx, processes, n)
 	return e.waitForAll(cancel)
 }
 
@@ -63,17 +71,16 @@ func (e *Executor) monitorContext(ctx context.Context) {
 
 // StartAll starts all processes in a separate goroutine and then returns
 // immediately.
-func (e *Executor) startAll(ctx context.Context, pp []Process) {
+func (e *Executor) startAll(ctx context.Context, pp []Process, longestName int) {
 	e.log.Info("Starting processes", zap.Int("amount", len(pp)))
 
 	e.running = map[string]Process{}
 	e.messages = make(chan message)
 
-	n := longestName(pp)
 	for _, p := range pp {
 		name := p.Name()
 		e.running[name] = p
-		output := e.output.next(name, n)
+		output := e.output.next(name, longestName)
 		go e.run(ctx, p, output)
 	}
 }

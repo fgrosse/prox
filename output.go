@@ -26,10 +26,13 @@ func newOutput() *output {
 // next creates a new *processOutput using the next color of the color palette.
 func (o *output) next(name string, longestName int) *processOutput {
 	c := o.colors.next()
-	name += strings.Repeat(" ", longestName-len(name))
+	return newProcessOutput(name, longestName, c, o)
+}
 
+func newProcessOutput(name string, longestName int, c color, w io.Writer) *processOutput {
+	name += strings.Repeat(" ", longestName-len(name))
 	return &processOutput{
-		Writer: o,
+		Writer: w,
 		prefix: fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault),
 	}
 }

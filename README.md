@@ -5,3 +5,4 @@
 - command or config to scale processes
 - command to simulate process crashes without bringing down the whole stack
 - limit characters per row in output based on terminal width (with opt-out))
+- configure JSON output and write rule (e.g. level=/FATAL|WARN|ERROR/i to color output)
