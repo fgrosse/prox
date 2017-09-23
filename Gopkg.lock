@@ -2,10 +2,10 @@
 
 
 [[projects]]
-  branch = "master"
   name = "github.com/fgrosse/zaptest"
   packages = ["."]
   revision = "88dc3e74eadbccae7fe0cce56e0627cb7bc35b97"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/fsnotify/fsnotify"
@@ -17,7 +17,7 @@
   branch = "master"
   name = "github.com/hashicorp/hcl"
   packages = [".","hcl/ast","hcl/parser","hcl/scanner","hcl/strconv","hcl/token","json/parser","json/scanner","json/token"]
-  revision = "392dba7d905ed5d04a5794ba89f558b27e2ba1ca"
+  revision = "68e816d1c783414e79bc65b3994d9ab6b0a722ab"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -71,7 +71,7 @@
   branch = "master"
   name = "github.com/spf13/afero"
   packages = [".","mem"]
-  revision = "9be650865eab0c12963d8753212f4f9c66cdcf12"
+  revision = "ee1bd8ee15a1306d1f9201acc41ef39cd9f99a1b"
 
 [[projects]]
   name = "github.com/spf13/cast"
@@ -83,13 +83,13 @@
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "b26b538f693051ac6518e65672de3144ce3fbedc"
+  revision = "b78744579491c1ceeaaa3b40205e56b0591b93a3"
 
 [[projects]]
   branch = "master"
   name = "github.com/spf13/jwalterweatherman"
   packages = ["."]
-  revision = "0efa5202c04663c757d84f90f5219c1250baf94f"
+  revision = "12bd96e66386c1960ab0f74ced1362f66f552f7b"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -98,10 +98,10 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/spf13/viper"
   packages = ["."]
   revision = "25b30aa063fc18e48662b86996252eabdcf2f0c7"
+  version = "v1.0.0"
 
 [[projects]]
   name = "go.uber.org/atomic"
@@ -118,26 +118,26 @@
 [[projects]]
   name = "go.uber.org/zap"
   packages = [".","buffer","internal/bufferpool","internal/color","internal/exit","zapcore"]
-  revision = "9d9d6135afe89b6fc4a05e9a8552526caba38048"
-  version = "v1.5.0"
+  revision = "7a9ca91fa627ed52c7ff4fcc95cd044dc2c82a51"
+  version = "v1.7.0"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["html","html/atom","html/charset"]
-  revision = "1c05540f6879653db88113bc4a2b70aec4bd491f"
+  revision = "0744d001aa8470aaa53df28d32e5ceeb8af9bd70"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "e42485b6e20ae7d2304ec72e535b103ed350cc02"
+  revision = "429f518978ab01db8bb6f44b66785088e7fba58b"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["encoding","encoding/charmap","encoding/htmlindex","encoding/internal","encoding/internal/identifier","encoding/japanese","encoding/korean","encoding/simplifiedchinese","encoding/traditionalchinese","encoding/unicode","internal/gen","internal/tag","internal/triegen","internal/ucd","internal/utf8internal","language","runes","transform","unicode/cldr","unicode/norm"]
-  revision = "b19bf474d317b857955b12035d2c5acb57ce8b01"
+  revision = "1cbadb444a806fd9430d14ad08967ed91da4fa0a"
 
 [[projects]]
   branch = "v2"
@@ -148,6 +148,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bde7a236f75f775d62caa926f7f05e7d97bf80bb0ab0eea4ed9195864efd8af1"
+  inputs-digest = "ff58466b6c899a0759bf089bd74238dc994dc57d60ed605115b84bc58b143d96"
   solver-name = "gps-cdcl"
   solver-version = 1

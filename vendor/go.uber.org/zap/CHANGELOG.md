@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.7.0 (21 Sep 2017)
+
+Enhancements:
+
+* [#439][]: Add `NewStdLogAt`, which extends `NewStdLog` by allowing the user
+  to specify the level of the logged messages.
+
+## v1.6.0 (30 Aug 2017)
+
+Enhancements:
+
+* [#491][]: Omit zap stack frames from stacktraces.
+* [#490][]: Add a `ContextMap` method to observer logs for simpler
+  field validation in tests.
+
 ## v1.5.0 (22 Jul 2017)
 
 Enhancements:
@@ -243,3 +258,6 @@ upgrade to the upcoming stable release.
 [#465]: https://github.com/uber-go/zap/pull/465
 [#460]: https://github.com/uber-go/zap/pull/460
 [#470]: https://github.com/uber-go/zap/pull/470
+[#490]: https://github.com/uber-go/zap/pull/490
+[#491]: https://github.com/uber-go/zap/pull/491
+[#491]: https://github.com/uber-go/zap/pull/439
