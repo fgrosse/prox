@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 )
 
+// output provides synchronized and colored *processOutput instances.
 type output struct {
 	mu     sync.Mutex
 	writer io.Writer
@@ -22,11 +24,12 @@ func newOutput() *output {
 }
 
 func (o *output) next(name string, longestName int) *processOutput {
+	c := o.colors.next()
+	name += strings.Repeat(" ", longestName-len(name))
+
 	return &processOutput{
 		Writer: o,
-		name:   name,
-		format: fmt.Sprintf("%%s%%-%d.%ds │%%s %%s", longestName, longestName),
-		color:  o.colors.next(),
+		prefix: fmt.Sprint(colorDefault, colorBold, c, name, " │", colorDefault),
 	}
 }
 
@@ -39,17 +42,19 @@ func (o *output) Write(b []byte) (int, error) {
 	return o.writer.Write(b)
 }
 
+// processOutput is an io.Writer that is used to write all output of a single
+// process. New processOutput instances should be created via output.next(…).
 type processOutput struct {
 	io.Writer
-	name   string
-	format string
-	color  color
+	prefix string
 }
 
-func (o *processOutput) Write(p []byte) (int, error) {
-	msg := o.formatMsg(p)
+// Write implements io.writer by formatting b and writing it through os wrapped
+// io.Writer.
+func (o *processOutput) Write(b []byte) (int, error) {
+	msg := o.formatMsg(b)
 	_, err := fmt.Fprintln(o.Writer, msg)
-	return len(p), err
+	return len(b), err
 }
 
 func (o *processOutput) formatMsg(p []byte) string {
@@ -58,12 +63,7 @@ func (o *processOutput) formatMsg(p []byte) string {
 		if msg.Len() > 0 {
 			msg.WriteString("\n")
 		}
-		fmt.Fprintf(msg, o.format,
-			colorBold+o.color,
-			o.name,
-			colorDefault,
-			line,
-		)
+		fmt.Fprintf(msg, o.prefix, line)
 	}
 
 	return msg.String()
