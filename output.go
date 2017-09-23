@@ -30,7 +30,7 @@ func (o *output) next(name string, longestName int) *processOutput {
 
 	return &processOutput{
 		Writer: o,
-		prefix: fmt.Sprint(colorDefault, colorBold, c, name, " │", colorDefault),
+		prefix: fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault),
 	}
 }
 
@@ -64,7 +64,7 @@ func (o *processOutput) formatMsg(p []byte) string {
 		if msg.Len() > 0 {
 			msg.WriteString("\n")
 		}
-		fmt.Fprintf(msg, o.prefix, line)
+		fmt.Fprint(msg, o.prefix, string(line))
 	}
 
 	return msg.String()

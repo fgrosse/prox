@@ -1,20 +1,26 @@
 package prox
 
 import (
+	"bytes"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("output", func() {
 	Describe("next", func() {
-		It("should create a colorized prefix of the correct length", func() {
+		It("should create a colorized process output with the correct prefix", func() {
+			buffer := new(bytes.Buffer)
 			o := &output{
-				writer: GinkgoWriter,
+				writer: buffer,
 				colors: &colorPalette{colors: []color{colorYellow}},
 			}
 
 			po := o.next("test", 8)
-			Expect(po.prefix).To(BeEquivalentTo(colorDefault + colorBold + colorYellow + "test     │" + colorDefault))
+			po.Write([]byte("This is a log message"))
+
+			prefix := colorDefault + colorBold + colorYellow + "test     │ " + colorDefault
+			Expect(buffer.String()).To(BeEquivalentTo(prefix + "This is a log message\n"))
 		})
 	})
 })
