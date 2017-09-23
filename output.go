@@ -23,6 +23,7 @@ func newOutput() *output {
 	}
 }
 
+// next creates a new *processOutput using the next color of the color palette.
 func (o *output) next(name string, longestName int) *processOutput {
 	c := o.colors.next()
 	name += strings.Repeat(" ", longestName-len(name))

@@ -22,7 +22,9 @@ type Process interface {
 	Run(context.Context, io.Writer, *zap.Logger) error
 }
 
-type shellProcess struct {
+// process is a Process implementation that uses os/exec to start system
+// processes.
+type process struct {
 	name   string
 	script string
 	env    Environment
@@ -33,10 +35,10 @@ type shellProcess struct {
 	cmd *exec.Cmd
 }
 
-// NewShellProcess creates a new Process that executes the given script as a new
+// NewProcess creates a new Process that executes the given script as a new
 // system process (using os/exec).
-func NewShellProcess(name, script string, env Environment) Process {
-	return &shellProcess{
+func NewProcess(name, script string, env Environment) Process {
+	return &process{
 		script:           script,
 		name:             name,
 		interruptTimeout: 5 * time.Second,
@@ -46,14 +48,14 @@ func NewShellProcess(name, script string, env Environment) Process {
 
 // Name returns the human readable name of p that can be used to identify a
 // specific process.
-func (p *shellProcess) Name() string {
+func (p *process) Name() string {
 	return p.name
 }
 
 // Run starts the shell process and blocks until it finishes or the context is
 // done. The given io.Writer receives all output (both stdout and stderr) of the
 // process.
-func (p *shellProcess) Run(ctx context.Context, output io.Writer, logger *zap.Logger) error {
+func (p *process) Run(ctx context.Context, output io.Writer, logger *zap.Logger) error {
 	p.mu.Lock()
 
 	if logger == nil {
@@ -82,7 +84,7 @@ func (p *shellProcess) Run(ctx context.Context, output io.Writer, logger *zap.Lo
 	return p.wait(ctx, logger)
 }
 
-func (p *shellProcess) wait(ctx context.Context, logger *zap.Logger) error {
+func (p *process) wait(ctx context.Context, logger *zap.Logger) error {
 	done := make(chan error)
 	go func() {
 		done <- p.cmd.Wait()
@@ -139,7 +141,7 @@ func (p *shellProcess) wait(ctx context.Context, logger *zap.Logger) error {
 	}
 }
 
-func (p *shellProcess) buildCommandLine() string {
+func (p *process) buildCommandLine() string {
 	script := p.env.Expand(p.script)
 
 	r := regexp.MustCompile(`[a-zA-Z_]+=\S+`)

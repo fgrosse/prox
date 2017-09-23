@@ -17,7 +17,7 @@ var _ = Describe("ParseProcFile", func() {
 			selenium: java -jar /usr/local/bin/selenium-server-standalone.jar
 		`
 
-		It("should parse shellProcess from the content", func() {
+		It("should parse process from the content", func() {
 			processes, err := ParseProcFile(strings.NewReader(content), Environment{})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(processes).To(HaveLen(3))
@@ -53,7 +53,7 @@ var _ = Describe("ParseProcFile", func() {
 				processes, err := ParseProcFile(strings.NewReader(content), env)
 				Expect(err).NotTo(HaveOccurred())
 				for _, p := range processes {
-					p, ok := p.(*shellProcess)
+					p, ok := p.(*process)
 					Expect(ok).To(BeTrue())
 					Expect(p.env).To(Equal(env))
 				}
@@ -64,6 +64,6 @@ var _ = Describe("ParseProcFile", func() {
 
 func ContainShellTask(name, commandLine string) types.GomegaMatcher {
 	return &matchers.ContainElementMatcher{
-		Element: NewShellProcess(name, commandLine, Environment{}),
+		Element: NewProcess(name, commandLine, Environment{}),
 	}
 }
