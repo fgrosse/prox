@@ -15,8 +15,10 @@ import (
 // key=value pairs which represent the environment variables that should be used
 // by all started processes. Trimmed lines which are empty or start with a "#"
 // are ignored and can be used to add comments.
-func ParseEnvFile(r io.Reader) (Environment, error) {
-	env := Environment{}
+//
+// All values are expanded using the Environment. If a value refers to a
+// variable that is not set in e then it is replaced with the empty string.
+func (e Environment) ParseEnvFile(r io.Reader) error {
 	s := bufio.NewScanner(r)
 	for s.Scan() {
 		line := strings.TrimSpace(s.Text())
@@ -24,10 +26,11 @@ func ParseEnvFile(r io.Reader) (Environment, error) {
 			continue
 		}
 
-		env.Set(line)
+		line = e.Expand(line)
+		e.Set(line)
 	}
 
-	return env, s.Err()
+	return s.Err()
 }
 
 // Environment is a set of key value pairs that are used to set environment
@@ -76,26 +79,10 @@ func (e Environment) List() []string {
 }
 
 // Expand replaces ${var} or $var in the input string with the corresponding
-// values of e.
+// values of e. If the variable is not found in e then an empty string is
+// returned.
 func (e Environment) Expand(input string) string {
 	return os.Expand(input, func(key string) string {
-		v, ok := e[key]
-		if !ok {
-			return key
-		}
-		return v
+		return e[key]
 	})
-}
-
-// Merge adds all variables of the other Environment to e. Variables that
-// already exist on e are ignored and remain unchanged.
-func (e Environment) Merge(other Environment) Environment {
-	for k, v := range other {
-		if _, ok := e[k]; ok {
-			continue
-		}
-		e[k] = v
-	}
-
-	return e
 }

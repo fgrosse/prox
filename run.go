@@ -44,11 +44,12 @@ func environment(path string) (Environment, error) {
 		return Environment{}, errors.Wrap(err, "failed to open env file")
 	}
 
-	env, err := ParseEnvFile(f)
+	env := SystemEnv()
+	err = env.ParseEnvFile(f)
 	f.Close()
 	if err != nil {
 		return Environment{}, err
 	}
 
-	return env.Merge(SystemEnv()), nil
+	return env, nil
 }
