@@ -20,10 +20,17 @@ import (
 // variable that is not set in e then it is replaced with the empty string.
 func (e Environment) ParseEnvFile(r io.Reader) error {
 	s := bufio.NewScanner(r)
+	var i int
 	for s.Scan() {
+		i++
+
 		line := strings.TrimSpace(s.Text())
 		if len(line) == 0 || line[0] == '#' {
 			continue
+		}
+
+		if !strings.ContainsRune(line, '=') {
+			return fmt.Errorf(`line %d does not contain '='`, i)
 		}
 
 		line = e.Expand(line)

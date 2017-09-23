@@ -1,22 +1,24 @@
 package prox
 
 import (
+	"io"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
 )
 
-// logger creates a zap logger that emits its log messages through the given
-// processOutput. If debug is true the log level will also include debug
+// NewLogger creates a zap NewLogger that emits its log messages through the given
+// io.Writer. If debug is true the log level will also include debug
 // messages. Otherwise only warning and errors will be logged.
-func logger(out *processOutput, debug bool) *zap.Logger {
+func NewLogger(w io.Writer, debug bool) *zap.Logger {
 	lvl := zap.WarnLevel
 	if debug {
 		lvl = zap.DebugLevel
 	}
 
 	enc := newLogEncoder()
-	core := zapcore.NewCore(enc, zapcore.AddSync(out), lvl)
+	core := zapcore.NewCore(enc, zapcore.AddSync(w), lvl)
 
 	return zap.New(core)
 }

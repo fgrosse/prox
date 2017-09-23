@@ -51,7 +51,7 @@ func (e *Executor) Run(ctx context.Context, processes []Process) error {
 
 	if e.log == nil {
 		out := output.nextColored("prox", colorWhite)
-		e.log = logger(out, e.debug)
+		e.log = NewLogger(out, e.debug)
 	}
 
 	// make sure all log output is flushed before we leave this function

@@ -133,6 +133,12 @@ var _ = Describe("Environment", func() {
 			}))
 		})
 
+		It("should return an error if env file is malformed", func() {
+			env := Environment{}
+			err := env.ParseEnvFile(strings.NewReader("FOOBAR"))
+			Expect(err).To(HaveOccurred())
+		})
+
 		PIt("should support quoting values for maximum flexibility")
 	})
 

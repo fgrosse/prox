@@ -30,22 +30,25 @@ var startCmd = &cobra.Command{
 func run(_ *cobra.Command, _ []string) {
 	ctx := cliContext()
 	debug := viper.GetBool("verbose")
+	logger := prox.NewLogger(os.Stderr, debug)
+	defer logger.Sync()
 
 	env, err := environment(".env") // TODO: use flag
 	if err != nil {
-		// TODO: log
+		logger.Error("Failed to parse env file: " + err.Error() + "\n")
 		os.Exit(StatusBadEnvFile)
 	}
 
 	f, err := os.Open("Procfile") // TODO: use flag
 	if err != nil {
-		// TODO log errors.Wrap(err, "failed to open Procfile")
+		logger.Error("Failed to open Procfile: " + err.Error() + "\n")
 		os.Exit(StatusBadProcFile)
 	}
 
 	pp, err := prox.ParseProcFile(f, env)
 	f.Close()
 	if err != nil {
+		logger.Error("Failed to parse Procfile: " + err.Error() + "\n")
 		os.Exit(StatusBadProcFile)
 	}
 
