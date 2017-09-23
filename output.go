@@ -11,13 +11,13 @@ import (
 type output struct {
 	mu     sync.Mutex
 	writer io.Writer
-	colors *colorProvider
+	colors *colorPalette
 }
 
 func newOutput() *output {
 	return &output{
 		writer: os.Stdout,
-		colors: newColorProvider(),
+		colors: newColorPalette(),
 	}
 }
 

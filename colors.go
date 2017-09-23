@@ -1,9 +1,5 @@
 package prox
 
-import (
-	"sync"
-)
-
 type color string
 
 const (
@@ -18,36 +14,29 @@ const (
 	colorWhite   color = "\x1b[37m"
 )
 
-// colors are all colors that are used to distinguish the output of all
-// processes. This list is ordered such that the first used color is first.
-var colors = []color{
-	// colorWhite, TODO: use for prox output
-	colorCyan,
-	colorYellow,
-	colorGreen,
-	colorMagenta,
-	colorRed,
-	colorBlue,
-}
-
-type colorProvider struct {
-	mu     sync.Mutex
+type colorPalette struct {
 	colors []color
 	i      int
 }
 
-func newColorProvider() *colorProvider {
-	return &colorProvider{colors: colors}
+func newColorPalette() *colorPalette {
+	return &colorPalette{colors: []color{
+		// colorWhite, TODO: use for prox output
+		colorCyan,
+		colorYellow,
+		colorGreen,
+		colorMagenta,
+		colorRed,
+		colorBlue,
+	}}
 }
 
-func (p *colorProvider) next() color {
-	p.mu.Lock()
+func (p *colorPalette) next() color {
 	c := p.colors[p.i]
 	p.i++
 	if p.i >= len(p.colors) {
 		p.i = 0
 	}
-	p.mu.Unlock()
 
 	return c
 }

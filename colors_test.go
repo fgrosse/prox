@@ -5,10 +5,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("colorProvider", func() {
+var _ = Describe("colorPalette", func() {
 	Describe("next", func() {
 		It("should return a random permutation of colors", func() {
-			cp := newColorProvider()
+			cp := newColorPalette()
 			Expect(len(cp.colors)).To(BeNumerically(">", 2))
 
 			// fetch all available colors
@@ -21,7 +21,7 @@ var _ = Describe("colorProvider", func() {
 		})
 
 		It("should reuse its colors when asked for more colors than we have defined", func() {
-			cp := newColorProvider()
+			cp := newColorPalette()
 			colors1 := map[color]struct{}{}
 			colors2 := map[color]struct{}{}
 

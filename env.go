@@ -12,9 +12,9 @@ import (
 // from the ".env" file.
 //
 // The format of the ".env" file is expected to be a newline separated list of
-// key=value pairs which represent the environment variables should be used by
-// the started processes. Trimmed lines which start with a "#" or are generally
-// empty are ignored.
+// key=value pairs which represent the environment variables that should be used
+// by all started processes. Trimmed lines which are empty or start with a "#"
+// are ignored and can be used to add comments.
 func ParseEnvFile(r io.Reader) (Environment, error) {
 	env := Environment{}
 	s := bufio.NewScanner(r)
@@ -30,7 +30,7 @@ func ParseEnvFile(r io.Reader) (Environment, error) {
 	return env, s.Err()
 }
 
-// Environment is a set of key value pairs that are used to inject environment
+// Environment is a set of key value pairs that are used to set environment
 // variables for processes.
 type Environment map[string]string
 
@@ -59,7 +59,7 @@ func (e Environment) Set(s string) {
 	e[parts[0]] = strings.TrimSpace(parts[1])
 }
 
-// SetAll sets a list of key=value pairs on e.
+// SetAll assigns a list of key=value pairs on e.
 func (e Environment) SetAll(vars []string) {
 	for _, v := range vars {
 		e.Set(v)
@@ -87,8 +87,8 @@ func (e Environment) Expand(input string) string {
 	})
 }
 
-// Merge adds all variables of the other Environment to e which are not already
-// set on e.
+// Merge adds all variables of the other Environment to e. Variables that
+// already exist on e are ignored and remain unchanged.
 func (e Environment) Merge(other Environment) Environment {
 	for k, v := range other {
 		if _, ok := e[k]; ok {

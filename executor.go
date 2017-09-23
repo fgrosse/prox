@@ -7,12 +7,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	statusSuccess status = iota
-	statusError
-	statusInterrupted
-)
-
 // An Executor manages a set of processes. It is responsible for running them
 // concurrently and waits until they have finished or an error occurs.
 type Executor struct {
@@ -22,13 +16,23 @@ type Executor struct {
 	output   *output
 }
 
+// messages are passed to signal that a specific process has finished along with
+// its reason for termination (i.e. status). For each started process we expect
+// a single message to eventually be sent to the Executor.
 type message struct {
 	p      Process
 	status status
 	err    error
 }
 
+// A status indicates why a process has finished.
 type status int
+
+const (
+	statusSuccess     status = iota // process finished with error code 0
+	statusError                     // process failed with some error
+	statusInterrupted               // process was cancelled because the context interrupted
+)
 
 // NewExecutor creates a new Executor. The debug flag controls whether debug
 // logging should be activated. If debug is false then only warnings and errors
@@ -44,7 +48,7 @@ func NewExecutor(debug bool) *Executor {
 // context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
-
+	go e.monitorContext(ctx)
 	ctx, cancel := context.WithCancel(ctx)
 	e.startAll(ctx, processes)
 	return e.waitForAll(cancel)
@@ -53,10 +57,12 @@ func (e *Executor) Run(ctx context.Context, processes []Process) error {
 func (e *Executor) monitorContext(ctx context.Context) {
 	<-ctx.Done()
 	if ctx.Err() == context.Canceled {
-		e.output.Write([]byte("Received interrupt signal"))
+		e.log.Info("Received interrupt signal")
 	}
 }
 
+// StartAll starts all processes in a separate goroutine and then returns
+// immediately.
 func (e *Executor) startAll(ctx context.Context, pp []Process) {
 	e.log.Info("Starting processes", zap.Int("amount", len(pp)))
 
@@ -65,8 +71,10 @@ func (e *Executor) startAll(ctx context.Context, pp []Process) {
 
 	n := longestName(pp)
 	for _, p := range pp {
-		e.running[p.Name()] = p
-		go e.run(ctx, p, n)
+		name := p.Name()
+		e.running[name] = p
+		output := e.output.next(name, n)
+		go e.run(ctx, p, output)
 	}
 }
 
@@ -86,11 +94,11 @@ func longestName(pp []Process) int {
 	return n
 }
 
-func (e *Executor) run(ctx context.Context, p Process, longestName int) {
+// Run starts a single process and blocks until it has completed or failed.
+func (e *Executor) run(ctx context.Context, p Process, output *processOutput) {
 	name := p.Name()
 	e.log.Info("Starting process", zap.String("name", name))
 
-	output := e.output.next(name, longestName)
 	logger := e.log.With(zap.String("process", name))
 	err := p.Run(ctx, output, logger)
 
