@@ -9,23 +9,17 @@ import (
 )
 
 var cmd = &cobra.Command{
-	Use:   "gox",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: run,
+	Use:   "prox",
+	Short: "A process runner for Procfile-based applications",
+	Run:   run,
 }
 
-var debug bool
-
 func main() {
-	cmd.PersistentFlags().BoolVarP(&debug, "verbose", "v", false, "enable detailed log output for debugging")
+	cmd.PersistentFlags().BoolP("verbose", "v", false, "enable detailed log output for debugging")
 
 	viper.AutomaticEnv()
+	viper.SetEnvPrefix("PROX")
+	viper.BindPFlags(cmd.PersistentFlags())
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Println(err)

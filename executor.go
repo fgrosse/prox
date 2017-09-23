@@ -54,6 +54,9 @@ func (e *Executor) Run(ctx context.Context, processes []Process) error {
 		e.log = logger(out, e.debug)
 	}
 
+	// make sure all log output is flushed before we leave this function
+	defer e.log.Sync()
+
 	go e.monitorContext(ctx)
 	ctx, cancel := context.WithCancel(ctx)
 	e.startAll(ctx, processes, output)
@@ -86,7 +89,7 @@ func (e *Executor) startAll(ctx context.Context, pp []Process, output *output) {
 // Run starts a single process and blocks until it has completed or failed.
 func (e *Executor) run(ctx context.Context, p Process, output *processOutput) {
 	name := p.Name()
-	e.log.Info("Starting process", zap.String("name", name))
+	e.log.Info("Starting process", zap.String("process_name", name))
 
 	logger := e.log.With(zap.String("process", name))
 	err := p.Run(ctx, output, logger)
@@ -106,6 +109,7 @@ func (e *Executor) run(ctx context.Context, p Process, output *processOutput) {
 
 func (e *Executor) waitForAll(interruptAll func()) error {
 	var firstErr error
+	var firstErrProcess string
 	for len(e.running) > 0 {
 		e.log.Debug("Waiting for processes to complete", zap.Int("amount", len(e.running)))
 
@@ -115,16 +119,24 @@ func (e *Executor) waitForAll(interruptAll func()) error {
 
 		switch message.status {
 		case statusSuccess:
-			e.log.Info("Task finished successfully", zap.String("name", message.p.Name()))
+			e.log.Info("Process finished successfully", zap.String("process_name", message.p.Name()))
 		case statusInterrupted:
-			e.log.Info("Task was interrupted", zap.String("name", message.p.Name()))
+			e.log.Info("Process was interrupted", zap.String("process_name", message.p.Name()))
 		case statusError:
-			e.log.Error("Task error", zap.String("name", message.p.Name()), zap.Error(message.err))
+			e.log.Error("Process error", zap.String("process_name", message.p.Name()), zap.Error(message.err))
 			if firstErr == nil {
 				firstErr = message.err
+				firstErrProcess = message.p.Name()
 			}
 			interruptAll()
 		}
+	}
+
+	if firstErr != nil {
+		e.log.Error("Stopped due to error in process",
+			zap.String("process_name", firstErrProcess),
+			zap.Error(firstErr),
+		)
 	}
 
 	return errors.Wrap(firstErr, "first error")

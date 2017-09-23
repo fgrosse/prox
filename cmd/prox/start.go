@@ -2,14 +2,20 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"bitbucket.org/corvan/prox"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+const (
+	StatusFailedProcess = 1
+	StatusBadEnvFile    = 2
+	StatusBadProcFile   = 3
 )
 
 func init() {
@@ -22,13 +28,33 @@ var startCmd = &cobra.Command{
 }
 
 func run(_ *cobra.Command, _ []string) {
-	log.SetFlags(0)
 	ctx := cliContext()
-	status, err := prox.Run(ctx, debug, ".env", "Procfile") // TODO: use flags
+	debug := viper.GetBool("verbose")
+
+	env, err := environment(".env") // TODO: use flag
 	if err != nil {
-		log.Printf("%s\tERROR\tprox\t%s", time.Now().Format("15:04:05"), err.Error()) // TODO: uniform logging
+		// TODO: log
+		os.Exit(StatusBadEnvFile)
 	}
-	os.Exit(status)
+
+	f, err := os.Open("Procfile") // TODO: use flag
+	if err != nil {
+		// TODO log errors.Wrap(err, "failed to open Procfile")
+		os.Exit(StatusBadProcFile)
+	}
+
+	pp, err := prox.ParseProcFile(f, env)
+	f.Close()
+	if err != nil {
+		os.Exit(StatusBadProcFile)
+	}
+
+	e := prox.NewExecutor(debug)
+	err = e.Run(ctx, pp)
+	if err != nil {
+		// The error was logged by the executor already
+		os.Exit(StatusFailedProcess)
+	}
 }
 
 func cliContext() context.Context {
@@ -42,4 +68,21 @@ func cliContext() context.Context {
 	}()
 
 	return ctx
+}
+
+func environment(path string) (prox.Environment, error) {
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return prox.SystemEnv(), nil
+	}
+
+	if err != nil {
+		return prox.Environment{}, errors.Wrap(err, "failed to open env file")
+	}
+
+	env := prox.SystemEnv()
+	err = env.ParseEnvFile(f)
+	f.Close()
+
+	return env, err
 }

@@ -6,6 +6,9 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// logger creates a zap logger that emits its log messages through the given
+// processOutput. If debug is true the log level will also include debug
+// messages. Otherwise only warning and errors will be logged.
 func logger(out *processOutput, debug bool) *zap.Logger {
 	lvl := zap.WarnLevel
 	if debug {
@@ -24,13 +27,11 @@ type logEncoder struct {
 }
 
 func newLogEncoder() zapcore.Encoder {
-	// We want to omit the regular fields from the JSON encoder so we basically
-	// leave all those *Key fields on their zero values.
 	cfg := zap.NewDevelopmentEncoderConfig()
+	// We want to omit a couple of fields from the JSON encoder so we set the
+	// corresponding fields to the empty string.
 	cfg.LevelKey = ""
 	cfg.TimeKey = ""
-	cfg.NameKey = ""
-	cfg.CallerKey = ""
 	cfg.MessageKey = ""
 
 	return logEncoder{

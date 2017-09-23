@@ -21,11 +21,11 @@ func newOutput(pp []Process) *output {
 	return &output{
 		writer:       os.Stdout,
 		colors:       newColorPalette(),
-		prefixLength: longestName(pp),
+		prefixLength: longestName(pp, 8),
 	}
 }
 
-func longestName(pp []Process) int {
+func longestName(pp []Process, minLength int) int {
 	var longest string
 	for _, p := range pp {
 		if n := p.Name(); len(n) > len(longest) {
@@ -34,8 +34,8 @@ func longestName(pp []Process) int {
 	}
 
 	n := len(longest)
-	if n < 8 {
-		n = 8
+	if n < minLength {
+		n = minLength
 	}
 
 	return n
@@ -47,6 +47,7 @@ func (o *output) next(name string) *processOutput {
 	return o.nextColored(name, c)
 }
 
+// nextColored creates a new *processOutput using the provided color.
 func (o *output) nextColored(name string, c color) *processOutput {
 	name += strings.Repeat(" ", o.prefixLength-len(name))
 	return &processOutput{
