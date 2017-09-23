@@ -4,3 +4,4 @@
 - command to connect to the output of a specific process
 - command or config to scale processes
 - command to simulate process crashes without bringing down the whole stack
+- limit characters per row in output based on terminal width (with opt-out))

@@ -5,27 +5,38 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 type output struct {
-	io.Writer
+	mu     sync.Mutex
+	writer io.Writer
 	colors *colorProvider
 }
 
 func newOutput() *output {
 	return &output{
-		Writer: os.Stdout,
+		writer: os.Stdout,
 		colors: newColorProvider(),
 	}
 }
 
 func (o *output) next(name string, longestName int) *processOutput {
 	return &processOutput{
-		Writer: o.Writer,
+		Writer: o,
 		name:   name,
-		format: fmt.Sprintf("%%s %%-%d.%ds │%%s %%s", longestName, longestName),
+		format: fmt.Sprintf("%%s%%-%d.%ds │%%s %%s", longestName, longestName),
 		color:  o.colors.next(),
 	}
+}
+
+// Write implements io.Writer by delegating all writes to os writer in a
+// synchronized manner.
+func (o *output) Write(b []byte) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.writer.Write(b)
 }
 
 type processOutput struct {
@@ -37,7 +48,7 @@ type processOutput struct {
 
 func (o *processOutput) Write(p []byte) (int, error) {
 	msg := o.formatMsg(p)
-	_, err := fmt.Fprintln(o.Writer, msg) // TODO: synchronize writing
+	_, err := fmt.Fprintln(o.Writer, msg)
 	return len(p), err
 }
 

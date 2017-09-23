@@ -44,9 +44,17 @@ func NewExecutor(debug bool) *Executor {
 // context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
+
 	ctx, cancel := context.WithCancel(ctx)
 	e.startAll(ctx, processes)
 	return e.waitForAll(cancel)
+}
+
+func (e *Executor) monitorContext(ctx context.Context) {
+	<-ctx.Done()
+	if ctx.Err() == context.Canceled {
+		e.output.Write([]byte("Received interrupt signal"))
+	}
 }
 
 func (e *Executor) startAll(ctx context.Context, pp []Process) {

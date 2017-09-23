@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -38,8 +37,7 @@ func cliContext() context.Context {
 	signal.Notify(sigs, syscall.SIGALRM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		s := <-sigs
-		fmt.Println("received signal", s) // TODO: use synchronized output
+		<-sigs
 		cancel()
 	}()
 
