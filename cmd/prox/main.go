@@ -16,6 +16,7 @@ var cmd = &cobra.Command{
 
 func main() {
 	cmd.PersistentFlags().BoolP("verbose", "v", false, "enable detailed log output for debugging")
+	cmd.Flags().AddFlagSet(startCmd.Flags())
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("PROX")

@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"bitbucket.org/corvan/prox"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -20,6 +21,9 @@ const (
 
 func init() {
 	cmd.AddCommand(startCmd)
+
+	startCmd.Flags().StringP("env-file", "e", ".env", "path to the env file")
+	startCmd.Flags().StringP("proc-file", "p", "Procfile", "path to the Procfile")
 }
 
 var startCmd = &cobra.Command{
@@ -27,26 +31,21 @@ var startCmd = &cobra.Command{
 	Run: run,
 }
 
-func run(_ *cobra.Command, _ []string) {
+func run(cmd *cobra.Command, _ []string) {
 	ctx := cliContext()
+	flags := cmd.Flags()
+
 	debug := viper.GetBool("verbose")
 	logger := prox.NewLogger(os.Stderr, debug)
 	defer logger.Sync()
 
-	env, err := environment(".env") // TODO: use flag
+	env, err := environment(flags)
 	if err != nil {
 		logger.Error("Failed to parse env file: " + err.Error() + "\n")
 		os.Exit(StatusBadEnvFile)
 	}
 
-	f, err := os.Open("Procfile") // TODO: use flag
-	if err != nil {
-		logger.Error("Failed to open Procfile: " + err.Error() + "\n")
-		os.Exit(StatusBadProcFile)
-	}
-
-	pp, err := prox.ParseProcFile(f, env)
-	f.Close()
+	pp, err := processes(flags, env)
 	if err != nil {
 		logger.Error("Failed to parse Procfile: " + err.Error() + "\n")
 		os.Exit(StatusBadProcFile)
@@ -73,14 +72,22 @@ func cliContext() context.Context {
 	return ctx
 }
 
-func environment(path string) (prox.Environment, error) {
+func environment(flags *pflag.FlagSet) (prox.Environment, error) {
+	path, err := flags.GetString("env-file")
+	if err != nil {
+		return prox.Environment{}, errors.New("failed to get --env-file flag: " + err.Error())
+	}
+
+	if path == "" {
+		return prox.Environment{}, errors.New("env file path cannot be empty")
+	}
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return prox.SystemEnv(), nil
 	}
 
 	if err != nil {
-		return prox.Environment{}, errors.Wrap(err, "failed to open env file")
+		return prox.Environment{}, errors.New("failed to open env file: " + err.Error())
 	}
 
 	env := prox.SystemEnv()
@@ -88,4 +95,21 @@ func environment(path string) (prox.Environment, error) {
 	f.Close()
 
 	return env, err
+}
+
+func processes(flags *pflag.FlagSet, env prox.Environment) ([]prox.Process, error) {
+	path, err := flags.GetString("proc-file")
+	if err != nil {
+		return nil, errors.New("failed to get --proc-file flag: " + err.Error())
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	pp, err := prox.ParseProcFile(f, env)
+	f.Close()
+
+	return pp, err
 }
