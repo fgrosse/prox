@@ -3,11 +3,9 @@ package prox
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -15,7 +13,7 @@ import (
 
 // A Server wraps an Executor to expose its functionality via a unix socket.
 type Server struct {
-	Executor   *Executor
+	executor   *Executor
 	socketPath string
 	newLogger  func([]Process) *zap.Logger
 }
@@ -25,7 +23,7 @@ type Server struct {
 // and Executor the Server.Run(…) function must be used.
 func NewExecutorServer(socketPath string, debug bool) *Server {
 	return &Server{
-		Executor:   NewExecutor(debug),
+		executor:   NewExecutor(debug),
 		socketPath: socketPath,
 		newLogger: func(pp []Process) *zap.Logger {
 			out := newOutput(pp).nextColored("prox", colorWhite)
@@ -47,7 +45,7 @@ func (s *Server) Run(ctx context.Context, pp []Process) error {
 	defer cancel() // always cancel context even if Executor finishes normally
 
 	go s.acceptConnections(ctx, l, s.newLogger(pp))
-	return s.Executor.Run(ctx, pp)
+	return s.executor.Run(ctx, pp)
 }
 
 func (s *Server) acceptConnections(ctx context.Context, l net.Listener, logger *zap.Logger) {
@@ -109,9 +107,9 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 		logger.Debug("Received command from prox client", zap.String("command", command))
 
 		switch {
-		case strings.HasPrefix(command, "CONNECT "):
+		case strings.HasPrefix(command, "TAIL "):
 			args := strings.Fields(command)
-			s.handleConnectCommand(ctx, conn, args[1:], logger)
+			s.handleTailRPC(ctx, conn, args[1:], logger)
 		case command == "EXIT":
 			logger.Info("Prox client has closed the connection")
 			return
@@ -121,17 +119,20 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 	}
 }
 
-func (s *Server) handleConnectCommand(ctx context.Context, conn net.Conn, args []string, logger *zap.Logger) {
-	// TODO: how to write messages as well as read input
-	var i int
-	for {
-		i++
-		logger.Info("Sending next message")
-		_, err := fmt.Fprintln(conn, "Hello", i, ":", args)
-		if err != nil {
-			logger.Error("Failed to send message", zap.Error(err))
-			return
+func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, args []string, logger *zap.Logger) {
+	if len(args) == 0 {
+		logger.Error("No arguments for tail provided") // TODO: send messages back to client
+		return
+	}
+
+	for _, name := range args {
+		o, ok := s.executor.outputs[name]
+		if !ok {
+			logger.Error("Cannot tail unknown process " + name)
+			// TODO: send error to client
+			continue
 		}
-		time.Sleep(time.Second)
+
+		o.Tail(conn) // TODO howto untail when connection gets closed?
 	}
 }

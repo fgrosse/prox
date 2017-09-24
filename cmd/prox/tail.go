@@ -10,21 +10,21 @@ import (
 )
 
 func init() {
-	cmd.AddCommand(connectCmd)
+	cmd.AddCommand(tailCmd)
 
-	connectCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of unix socket file to connect to")
+	tailCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of unix socket file to connect to")
 	// TODO: flag to omit prefix (useful if connecting to a single command and piping JSON output into jq)
 }
 
-var connectCmd = &cobra.Command{
-	Use: "connect <process>", // TODO: maybe rename to "tail" ?
+var tailCmd = &cobra.Command{
+	Use: "tail <process>",
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cliContext()
 		debug := viper.GetBool("verbose")
 		logger := prox.NewLogger(os.Stderr, debug)
 
 		if len(args) == 0 {
-			logger.Fatal("connect requires at least one argument")
+			logger.Fatal("tail requires at least one argument")
 		}
 
 		socketPath, err := cmd.Flags().GetString("socket")
@@ -38,7 +38,7 @@ var connectCmd = &cobra.Command{
 		}
 		defer c.Close()
 
-		err = c.TailProcess(ctx, args, os.Stdout)
+		err = c.Tail(ctx, args, os.Stdout)
 		if err != nil && err != context.Canceled {
 			logger.Fatal(err.Error())
 		}

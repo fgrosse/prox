@@ -13,6 +13,7 @@ type Executor struct {
 	debug    bool
 	log      *zap.Logger
 	running  map[string]Process
+	outputs  map[string]*processOutput
 	messages chan message
 }
 
@@ -76,13 +77,14 @@ func (e *Executor) startAll(ctx context.Context, pp []Process, output *output) {
 	e.log.Info("Starting processes", zap.Int("amount", len(pp)))
 
 	e.running = map[string]Process{}
+	e.outputs = map[string]*processOutput{}
 	e.messages = make(chan message)
 
 	for _, p := range pp {
 		name := p.Name()
 		e.running[name] = p
-		output := output.next(name)
-		go e.run(ctx, p, output)
+		e.outputs[name] = output.next(name)
+		go e.run(ctx, p, e.outputs[name])
 	}
 }
 

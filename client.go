@@ -37,9 +37,9 @@ func NewClient(socketPath string, debug bool) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) TailProcess(ctx context.Context, processNames []string, output io.Writer) error {
+func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writer) error {
 	ctx, cancel := context.WithCancel(ctx)
-	err := c.write("CONNECT " + strings.Join(processNames, " "))
+	err := c.write("TAIL " + strings.Join(processNames, " "))
 	if err != nil {
 		return err
 	}

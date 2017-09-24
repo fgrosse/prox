@@ -69,14 +69,26 @@ func (o *output) Write(b []byte) (int, error) {
 // process. New processOutput instances should be created via output.next(…).
 type processOutput struct {
 	io.Writer
+	mu     sync.Mutex
 	prefix string
+}
+
+// Tail copies all messages that are written via o to the provided io.Writer.
+func (o *processOutput) Tail(w io.Writer) {
+	o.mu.Lock()
+	o.Writer = io.MultiWriter(o.Writer, w)
+	o.mu.Unlock()
 }
 
 // Write implements io.writer by formatting b and writing it through os wrapped
 // io.Writer.
 func (o *processOutput) Write(b []byte) (int, error) {
+	o.mu.Lock()
+	w := o.Writer
+	o.mu.Unlock()
+
 	msg := o.formatMsg(b)
-	_, err := fmt.Fprintln(o.Writer, msg)
+	_, err := fmt.Fprintln(w, msg)
 	return len(b), err
 }
 
