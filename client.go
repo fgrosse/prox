@@ -5,31 +5,39 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
+// A Client connects to a Server via a unix socket to provide advanced
+// functionality on a running prox server.
 type Client struct {
-	conn net.Conn
-	buf  *bufio.Reader
+	conn   net.Conn
+	logger *zap.Logger
+	buf    *bufio.Reader
 }
 
-func NewClient(socketPath string) (*Client, error) {
+// NewClient creates a new prox Client and immediately connects it to a prox
+// Server via a unix socket. It is the callers responsibility to eventually
+// close the client to release the underlying socket connection.
+func NewClient(socketPath string, debug bool) (*Client, error) {
 	c, err := net.Dial("unix", socketPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to connect to prox socket")
 	}
 
 	return &Client{
-		conn: c,
-		buf:  bufio.NewReader(c),
+		conn:   c,
+		logger: NewLogger(os.Stderr, debug),
+		buf:    bufio.NewReader(c),
 	}, nil
 }
 
-func (c *Client) Connect(ctx context.Context, processNames []string, output io.Writer) error {
+func (c *Client) TailProcess(ctx context.Context, processNames []string, output io.Writer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	err := c.write("CONNECT " + strings.Join(processNames, " "))
 	if err != nil {
@@ -39,11 +47,15 @@ func (c *Client) Connect(ctx context.Context, processNames []string, output io.W
 	lines := make(chan string)
 	go func() {
 		for {
-			// TODO: improve and test this mess
 			line, err := c.readLine()
-			// TODO: err == io.EOF if server closes connection
 			if err != nil {
-				log.Println("ERROR: ", err) // TODO: logging
+				if err == io.EOF {
+					c.logger.Info("Server closed connection")
+				} else {
+					c.logger.Error(err.Error())
+				}
+
+				// Cancel the context to return from the loop below.
 				cancel()
 				return
 			}
@@ -54,7 +66,7 @@ func (c *Client) Connect(ctx context.Context, processNames []string, output io.W
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil
 		case l := <-lines:
 			_, err = fmt.Fprint(output, l)
 			if err != nil {
@@ -73,6 +85,7 @@ func (c *Client) readLine() (string, error) {
 	return c.buf.ReadString('\n')
 }
 
+// Close closes the socket connection to the prox server.
 func (c *Client) Close() error {
 	var _ = c.write("EXIT")
 	return c.conn.Close()

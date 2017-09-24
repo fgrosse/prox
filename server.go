@@ -13,12 +13,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// A Server wraps an Executor to expose its functionality via a unix socket.
 type Server struct {
 	Executor   *Executor
 	socketPath string
 	newLogger  func([]Process) *zap.Logger
 }
 
+// NewExecutorServer creates a new Server. This function does not start the
+// Executor nor does it listen on the unix socket just yet. To start the Server
+// and Executor the Server.Run(…) function must be used.
 func NewExecutorServer(socketPath string, debug bool) *Server {
 	return &Server{
 		Executor:   NewExecutor(debug),
@@ -30,6 +34,9 @@ func NewExecutorServer(socketPath string, debug bool) *Server {
 	}
 }
 
+// Run opens a unix socket using the path that was passed via NewExecutor and
+// then starts the Executor. The socket is closed automatically when the
+// Executor or the context is done.
 func (s *Server) Run(ctx context.Context, pp []Process) error {
 	l, err := net.Listen("unix", s.socketPath)
 	if err != nil {
@@ -44,13 +51,30 @@ func (s *Server) Run(ctx context.Context, pp []Process) error {
 }
 
 func (s *Server) acceptConnections(ctx context.Context, l net.Listener, logger *zap.Logger) {
-	go closeWhenDone(ctx, "socket listener", l, logger)
+	go func() {
+		<-ctx.Done()
+
+		// Closing the listener will unblock the Accept call in the loop below.
+		logger.Info("Closing socket listener")
+		err := l.Close()
+		if err != nil {
+			logger.Error("Failed to close socket listener", zap.Error(err))
+		}
+
+		// Any already opened connections are closed by the handler if the
+		// context is done.
+	}()
 
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			// TODO do not log error due to closed listener
-			logger.Error("Failed to accept connection", zap.Error(err))
+			select {
+			case <-ctx.Done():
+				// error due to closing listener
+			default:
+				logger.Error("Failed to accept connection", zap.Error(err))
+			}
+			return
 		}
 
 		go s.handleConnection(ctx, conn, logger)
@@ -59,8 +83,15 @@ func (s *Server) acceptConnections(ctx context.Context, l net.Listener, logger *
 
 func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *zap.Logger) {
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go closeWhenDone(ctx, "connection", conn, logger)
+	defer cancel() // Always make sure the connection is closed when we return.
+
+	go func() {
+		<-ctx.Done()
+		err := conn.Close()
+		if err != nil {
+			logger.Error("Failed to close connection", zap.Error(err))
+		}
+	}()
 
 	r := bufio.NewReader(conn)
 	for {
@@ -102,13 +133,5 @@ func (s *Server) handleConnectCommand(ctx context.Context, conn net.Conn, args [
 			return
 		}
 		time.Sleep(time.Second)
-	}
-}
-
-func closeWhenDone(ctx context.Context, name string, c io.Closer, logger *zap.Logger) {
-	<-ctx.Done()
-	err := c.Close()
-	if err != nil {
-		logger.Error("Failed to close "+name, zap.Error(err))
 	}
 }

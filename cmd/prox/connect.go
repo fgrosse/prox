@@ -32,13 +32,13 @@ var connectCmd = &cobra.Command{
 			logger.Fatal("Failed to get --socket flag: " + err.Error())
 		}
 
-		c, err := prox.NewClient(socketPath)
+		c, err := prox.NewClient(socketPath, debug)
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
 		defer c.Close()
 
-		err = c.Connect(ctx, args, os.Stdout)
+		err = c.TailProcess(ctx, args, os.Stdout)
 		if err != nil && err != context.Canceled {
 			logger.Fatal(err.Error())
 		}
