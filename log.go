@@ -52,7 +52,12 @@ func (c logEncoder) Clone() zapcore.Encoder {
 func (c logEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
 	line := c.pool.Get()
 
+	line.AppendString("[")
+	line.AppendString(ent.Level.CapitalString())
+	line.AppendString("] ")
+
 	line.AppendString(ent.Message)
+
 	if len(fields) == 0 {
 		return line, nil
 	}

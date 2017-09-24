@@ -17,6 +17,8 @@ const (
 	StatusFailedProcess = 1
 	StatusBadEnvFile    = 2
 	StatusBadProcFile   = 3
+
+	DefaultSocketPath = ".prox.sock" // hidden file in current PWD
 )
 
 func init() {
@@ -24,6 +26,7 @@ func init() {
 
 	startCmd.Flags().StringP("env-file", "e", ".env", "path to the env file")
 	startCmd.Flags().StringP("proc-file", "p", "Procfile", "path to the Procfile")
+	startCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
 }
 
 var startCmd = &cobra.Command{
@@ -39,6 +42,11 @@ func run(cmd *cobra.Command, _ []string) {
 	logger := prox.NewLogger(os.Stderr, debug)
 	defer logger.Sync()
 
+	socketPath, err := cmd.Flags().GetString("socket")
+	if err != nil {
+		logger.Fatal("Failed to get --socket flag")
+	}
+
 	env, err := environment(flags)
 	if err != nil {
 		logger.Error("Failed to parse env file: " + err.Error() + "\n")
@@ -51,7 +59,9 @@ func run(cmd *cobra.Command, _ []string) {
 		os.Exit(StatusBadProcFile)
 	}
 
-	e := prox.NewExecutor(debug)
+	// TODO: implement opt out for socket feature
+
+	e := prox.NewExecutorServer(socketPath, debug)
 	err = e.Run(ctx, pp)
 	if err != nil {
 		// The error was logged by the executor already
@@ -81,6 +91,7 @@ func environment(flags *pflag.FlagSet) (prox.Environment, error) {
 	if path == "" {
 		return prox.Environment{}, errors.New("env file path cannot be empty")
 	}
+
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return prox.SystemEnv(), nil
@@ -90,10 +101,9 @@ func environment(flags *pflag.FlagSet) (prox.Environment, error) {
 		return prox.Environment{}, errors.New("failed to open env file: " + err.Error())
 	}
 
+	defer f.Close()
 	env := prox.SystemEnv()
 	err = env.ParseEnvFile(f)
-	f.Close()
-
 	return env, err
 }
 
@@ -108,8 +118,6 @@ func processes(flags *pflag.FlagSet, env prox.Environment) ([]prox.Process, erro
 		return nil, err
 	}
 
-	pp, err := prox.ParseProcFile(f, env)
-	f.Close()
-
-	return pp, err
+	defer f.Close()
+	return prox.ParseProcFile(f, env)
 }
