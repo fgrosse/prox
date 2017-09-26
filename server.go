@@ -61,6 +61,7 @@ func (s *Server) acceptConnections(ctx context.Context, l net.Listener, logger *
 		// context is done.
 	}()
 
+	var clientID int
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -73,7 +74,10 @@ func (s *Server) acceptConnections(ctx context.Context, l net.Listener, logger *
 			return
 		}
 
-		go s.handleConnection(ctx, conn, logger)
+		clientID++
+		connLog := logger.With(zap.Int("client_id", clientID))
+		connLog.Info("Accepted new socket connection from prox client")
+		go s.handleConnection(ctx, conn, connLog)
 	}
 }
 
@@ -83,6 +87,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 
 	go func() {
 		<-ctx.Done()
+		logger.Debug("Closing connection to prox client")
 		err := conn.Close()
 		if err != nil {
 			logger.Error("Failed to close connection", zap.Error(err))
@@ -90,47 +95,68 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 	}()
 
 	r := bufio.NewReader(conn)
-	for {
-		command, err := r.ReadString('\n')
-		if err == io.EOF {
-			logger.Warn("Lost connection to prox client")
-			return
-		}
-
-		if err != nil {
-			logger.Error("Failed to read line from client", zap.Error(err))
-		}
-
-		command = strings.TrimSpace(command)
-		logger.Debug("Received command from prox client", zap.String("command", command))
-
-		switch {
-		case strings.HasPrefix(command, "TAIL "):
-			args := strings.Fields(command)
-			s.handleTailRPC(ctx, conn, args[1:], logger)
-		case command == "EXIT":
-			logger.Info("Prox client has closed the connection")
-			return
-		default:
-			logger.Error("Unknown command from prox client", zap.String("command", command))
-		}
-	}
-}
-
-func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, args []string, logger *zap.Logger) {
-	if len(args) == 0 {
-		logger.Error("No arguments for tail provided") // TODO: send messages back to client
+	command, err := r.ReadString('\n')
+	if err == io.EOF {
+		logger.Warn("Lost connection to prox client")
 		return
 	}
 
+	if err != nil {
+		logger.Error("Failed to read line from client", zap.Error(err))
+	}
+
+	command = strings.TrimSpace(command)
+	logger.Debug("Received command from prox client", zap.String("command", command))
+
+	switch {
+	case strings.HasPrefix(command, "TAIL "):
+		args := strings.Fields(command)
+		err = s.handleTailRPC(ctx, conn, args[1:], logger)
+	case command == "EXIT":
+		logger.Info("Prox client has closed the connection")
+		return
+	default:
+		logger.Error("Unknown command from prox client", zap.String("command", command))
+	}
+
+	if err != nil {
+		// TODO: send messages back to client
+		logger.Error("prox client error", zap.Error(err))
+	}
+}
+
+func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, args []string, logger *zap.Logger) error {
+	if len(args) == 0 {
+		return errors.New("no arguments for tail provided")
+	}
+
+	var outputs []*processOutput
 	for _, name := range args {
 		o, ok := s.Executor.outputs[name]
 		if !ok {
-			logger.Error("Cannot tail unknown process " + name)
-			// TODO: send error to client
-			continue
+			return errors.Errorf("cannot tail unknown process %q", name)
 		}
 
-		o.Tail(conn) // TODO howto untail when connection gets closed?
+		o.AddWriter(conn)
+		outputs = append(outputs, o)
 	}
+
+	defer func() {
+		for _, o := range outputs {
+			o.RemoveWriter(conn)
+		}
+	}()
+
+	r := bufio.NewReader(conn)
+	command, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+
+	command = strings.TrimSpace(command)
+	if command != "EXIT" {
+		return errors.Errorf("expected EXIT command but got %q", command)
+	}
+
+	return nil
 }

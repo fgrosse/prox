@@ -55,7 +55,7 @@ func (o *output) next(name string) *processOutput {
 // nextColored creates a new *processOutput using the provided color.
 func (o *output) nextColored(name string, c color) *processOutput {
 	name += strings.Repeat(" ", o.prefixLength-len(name))
-	po := &processOutput{Writer: o}
+	po := newProcessOutput(o)
 	if c == colorNone {
 		po.prefix = name + " │ "
 	} else {
@@ -77,15 +77,35 @@ func (o *output) Write(b []byte) (int, error) {
 // processOutput is an io.Writer that is used to write all output of a single
 // process. New processOutput instances should be created via output.next(…).
 type processOutput struct {
-	io.Writer
-	mu     sync.Mutex
-	prefix string
+	mu      sync.Mutex
+	writers []io.Writer
+	prefix  string
 }
 
-// Tail copies all messages that are written via o to the provided io.Writer.
-func (o *processOutput) Tail(w io.Writer) {
+func newProcessOutput(w io.Writer) *processOutput {
+	return &processOutput{
+		writers: []io.Writer{w},
+	}
+}
+
+// AddWriter adds a new writer that will receive all messages that are written
+// via o.
+func (o *processOutput) AddWriter(w io.Writer) {
 	o.mu.Lock()
-	o.Writer = io.MultiWriter(o.Writer, w)
+	o.writers = append(o.writers, w)
+	o.mu.Unlock()
+}
+
+// RemoveWriter removes a previously added writer from the output.
+func (o *processOutput) RemoveWriter(w io.Writer) {
+	o.mu.Lock()
+	ww := make([]io.Writer, 0, len(o.writers))
+	for _, x := range o.writers {
+		if x != w {
+			ww = append(ww, x)
+		}
+	}
+	o.writers = ww
 	o.mu.Unlock()
 }
 
@@ -93,7 +113,7 @@ func (o *processOutput) Tail(w io.Writer) {
 // io.Writer.
 func (o *processOutput) Write(b []byte) (int, error) {
 	o.mu.Lock()
-	w := o.Writer
+	w := io.MultiWriter(o.writers...)
 	o.mu.Unlock()
 
 	msg := o.formatMsg(b)

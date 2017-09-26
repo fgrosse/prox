@@ -2,6 +2,7 @@ package prox
 
 import (
 	"io"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
@@ -58,12 +59,7 @@ func (c logEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*buf
 
 	line.AppendString(ent.Message)
 
-	if len(fields) == 0 {
-		return line, nil
-	}
-
 	// add all extra fields as JSON
-	line.AppendString("\t")
 	jsonEnc := c.Encoder.Clone()
 	buf, err := jsonEnc.EncodeEntry(ent, fields)
 	if err != nil {
@@ -71,7 +67,10 @@ func (c logEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*buf
 	}
 
 	defer buf.Free()
-	line.AppendString(buf.String())
+	if s := strings.TrimSpace(buf.String()); s != "{}" {
+		line.AppendString("\t")
+		line.AppendString(s)
+	}
 
 	return line, nil
 }
