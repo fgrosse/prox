@@ -13,9 +13,8 @@ import (
 
 // A Server wraps an Executor to expose its functionality via a unix socket.
 type Server struct {
-	executor   *Executor
+	*Executor
 	socketPath string
-	newLogger  func([]Process) *zap.Logger
 }
 
 // NewExecutorServer creates a new Server. This function does not start the
@@ -23,12 +22,8 @@ type Server struct {
 // and Executor the Server.Run(…) function must be used.
 func NewExecutorServer(socketPath string, debug bool) *Server {
 	return &Server{
-		executor:   NewExecutor(debug),
+		Executor:   NewExecutor(debug),
 		socketPath: socketPath,
-		newLogger: func(pp []Process) *zap.Logger {
-			out := newOutput(pp).nextColored("prox", colorWhite)
-			return NewLogger(out, debug)
-		},
 	}
 }
 
@@ -44,8 +39,11 @@ func (s *Server) Run(ctx context.Context, pp []Process) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // always cancel context even if Executor finishes normally
 
-	go s.acceptConnections(ctx, l, s.newLogger(pp))
-	return s.executor.Run(ctx, pp)
+	out := newOutput(pp, s.noColors).nextColored("prox", s.proxLogColor)
+	logger := NewLogger(out, s.debug)
+
+	go s.acceptConnections(ctx, l, logger)
+	return s.Executor.Run(ctx, pp)
 }
 
 func (s *Server) acceptConnections(ctx context.Context, l net.Listener, logger *zap.Logger) {
@@ -126,7 +124,7 @@ func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, args []string
 	}
 
 	for _, name := range args {
-		o, ok := s.executor.outputs[name]
+		o, ok := s.Executor.outputs[name]
 		if !ok {
 			logger.Error("Cannot tail unknown process " + name)
 			// TODO: send error to client

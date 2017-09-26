@@ -24,7 +24,7 @@ var _ = Describe("output", func() {
 			Expect(buffer.String()).To(BeEquivalentTo(prefix + "This is a log message\n"))
 		})
 
-		PDescribe("without colors", func() {
+		Describe("without colors", func() {
 			It("should not colorize the output", func() {
 				buffer := new(bytes.Buffer)
 				o := &output{

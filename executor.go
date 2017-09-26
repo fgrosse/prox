@@ -10,11 +10,13 @@ import (
 // An Executor manages a set of processes. It is responsible for running them
 // concurrently and waits until they have finished or an error occurs.
 type Executor struct {
-	debug    bool
-	log      *zap.Logger
-	running  map[string]Process
-	outputs  map[string]*processOutput
-	messages chan message
+	debug        bool
+	noColors     bool
+	proxLogColor color
+	log          *zap.Logger
+	running      map[string]Process
+	outputs      map[string]*processOutput
+	messages     chan message
 }
 
 // messages are passed to signal that a specific process has finished along with
@@ -40,18 +42,25 @@ const (
 // will be logged.
 func NewExecutor(debug bool) *Executor {
 	return &Executor{
-		debug: debug,
+		debug:        debug,
+		proxLogColor: colorWhite,
 	}
+}
+
+// DisableColoredOutput disables colored prefixes in the output.
+func (e *Executor) DisableColoredOutput() {
+	e.noColors = true
+	e.proxLogColor = colorNone
 }
 
 // Run starts all processes and blocks until all processes have finished or the
 // context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
-	output := newOutput(processes)
+	output := newOutput(processes, e.noColors)
 
 	if e.log == nil {
-		out := output.nextColored("prox", colorWhite)
+		out := output.nextColored("prox", e.proxLogColor)
 		e.log = NewLogger(out, e.debug)
 	}
 

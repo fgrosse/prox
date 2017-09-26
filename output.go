@@ -17,12 +17,17 @@ type output struct {
 	prefixLength int
 }
 
-func newOutput(pp []Process) *output {
-	return &output{
+func newOutput(pp []Process, noColors bool) *output {
+	o := &output{
 		writer:       os.Stdout,
-		colors:       newColorPalette(),
 		prefixLength: longestName(pp, 8),
 	}
+
+	if !noColors {
+		o.colors = newColorPalette()
+	}
+
+	return o
 }
 
 func longestName(pp []Process, minLength int) int {
@@ -50,10 +55,14 @@ func (o *output) next(name string) *processOutput {
 // nextColored creates a new *processOutput using the provided color.
 func (o *output) nextColored(name string, c color) *processOutput {
 	name += strings.Repeat(" ", o.prefixLength-len(name))
-	return &processOutput{
-		Writer: o,
-		prefix: fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault),
+	po := &processOutput{Writer: o}
+	if c == colorNone {
+		po.prefix = name + " │ "
+	} else {
+		po.prefix = fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault)
 	}
+
+	return po
 }
 
 // Write implements io.Writer by delegating all writes to os writer in a

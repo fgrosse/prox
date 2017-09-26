@@ -24,14 +24,16 @@ const (
 func init() {
 	cmd.AddCommand(startCmd)
 
+	startCmd.Flags().Bool("no-colors", false, "disable colored output")
 	startCmd.Flags().StringP("env-file", "e", ".env", "path to the env file")
 	startCmd.Flags().StringP("proc-file", "p", "Procfile", "path to the Procfile")
 	startCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
 }
 
 var startCmd = &cobra.Command{
-	Use: "start",
-	Run: run,
+	Use:   "start",
+	Short: "Run all processes",
+	Run:   run,
 }
 
 func run(cmd *cobra.Command, _ []string) {
@@ -42,10 +44,8 @@ func run(cmd *cobra.Command, _ []string) {
 	logger := prox.NewLogger(os.Stderr, debug)
 	defer logger.Sync()
 
-	socketPath, err := cmd.Flags().GetString("socket")
-	if err != nil {
-		logger.Fatal("Failed to get --socket flag")
-	}
+	socketPath := GetStringFlag(cmd, "socket", logger)
+	disableColors := GetBoolFlag(cmd, "no-colors", logger)
 
 	env, err := environment(flags)
 	if err != nil {
@@ -62,6 +62,11 @@ func run(cmd *cobra.Command, _ []string) {
 	// TODO: implement opt out for socket feature
 
 	e := prox.NewExecutorServer(socketPath, debug)
+
+	if disableColors {
+		e.DisableColoredOutput()
+	}
+
 	err = e.Run(ctx, pp)
 	if err != nil {
 		// The error was logged by the executor already

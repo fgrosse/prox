@@ -3,6 +3,7 @@ package prox
 type color string
 
 const (
+	colorNone    color = ""
 	colorDefault color = "\x1b[0m"
 	colorBold    color = "\x1b[1m"
 	colorRed     color = "\x1b[31m"
@@ -31,6 +32,10 @@ func newColorPalette() *colorPalette {
 }
 
 func (p *colorPalette) next() color {
+	if p == nil || len(p.colors) == 0 {
+		return colorNone
+	}
+
 	c := p.colors[p.i]
 	p.i++
 	if p.i >= len(p.colors) {
