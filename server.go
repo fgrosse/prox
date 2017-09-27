@@ -31,16 +31,17 @@ func NewExecutorServer(socketPath string, debug bool) *Server {
 // then starts the Executor. The socket is closed automatically when the
 // Executor or the context is done.
 func (s *Server) Run(ctx context.Context, pp []Process) error {
+	out := newOutput(pp, s.noColors).nextColored("prox", s.proxLogColor)
+	logger := NewLogger(out, s.debug)
+
 	l, err := net.Listen("unix", s.socketPath)
 	if err != nil {
+		logger.Error("Failed to open unix socket: " + err.Error())
 		return errors.Wrap(err, "failed to open unix socket")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // always cancel context even if Executor finishes normally
-
-	out := newOutput(pp, s.noColors).nextColored("prox", s.proxLogColor)
-	logger := NewLogger(out, s.debug)
 
 	go s.acceptConnections(ctx, l, logger)
 	return s.Executor.Run(ctx, pp)

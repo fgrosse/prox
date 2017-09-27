@@ -70,6 +70,7 @@ func run(cmd *cobra.Command, _ []string) {
 	err = e.Run(ctx, pp)
 	if err != nil {
 		// The error was logged by the executor already
+		// TODO: change signature of Run to return boolean
 		os.Exit(StatusFailedProcess)
 	}
 }
