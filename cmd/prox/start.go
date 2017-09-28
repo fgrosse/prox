@@ -62,6 +62,7 @@ func run(cmd *cobra.Command, _ []string) {
 	// TODO: implement opt out for socket feature
 
 	e := prox.NewExecutorServer(socketPath, debug)
+	defer e.Close()
 
 	if disableColors {
 		e.DisableColoredOutput()

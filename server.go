@@ -14,6 +14,7 @@ import (
 // A Server wraps an Executor to expose its functionality via a unix socket.
 type Server struct {
 	*Executor
+	listener   net.Listener
 	socketPath string
 }
 
@@ -28,13 +29,14 @@ func NewExecutorServer(socketPath string, debug bool) *Server {
 }
 
 // Run opens a unix socket using the path that was passed via NewExecutor and
-// then starts the Executor. The socket is closed automatically when the
-// Executor or the context is done.
+// then starts the Executor. It is the callers responsibility to eventually call
+// Server.Close() in order to close the unix socket connect.
 func (s *Server) Run(ctx context.Context, pp []Process) error {
 	out := newOutput(pp, s.noColors).nextColored("prox", s.proxLogColor)
 	logger := NewLogger(out, s.debug)
 
-	l, err := net.Listen("unix", s.socketPath)
+	var err error
+	s.listener, err = net.Listen("unix", s.socketPath)
 	if err != nil {
 		logger.Error("Failed to open unix socket: " + err.Error())
 		return errors.Wrap(err, "failed to open unix socket")
@@ -43,28 +45,14 @@ func (s *Server) Run(ctx context.Context, pp []Process) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // always cancel context even if Executor finishes normally
 
-	go s.acceptConnections(ctx, l, logger)
+	go s.acceptConnections(ctx, logger)
 	return s.Executor.Run(ctx, pp)
 }
 
-func (s *Server) acceptConnections(ctx context.Context, l net.Listener, logger *zap.Logger) {
-	go func() {
-		<-ctx.Done()
-
-		// Closing the listener will unblock the Accept call in the loop below.
-		logger.Info("Closing socket listener")
-		err := l.Close()
-		if err != nil {
-			logger.Error("Failed to close socket listener", zap.Error(err))
-		}
-
-		// Any already opened connections are closed by the handler if the
-		// context is done.
-	}()
-
+func (s *Server) acceptConnections(ctx context.Context, logger *zap.Logger) {
 	var clientID int
 	for {
-		conn, err := l.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -160,4 +148,14 @@ func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, args []string
 	}
 
 	return nil
+}
+
+// Close closes the Servers listener.
+func (s *Server) Close() error {
+	if s.listener == nil {
+		return nil
+	}
+
+	s.log.Info("Closing unix socket")
+	return s.listener.Close()
 }
