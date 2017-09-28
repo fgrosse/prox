@@ -1,10 +1,12 @@
 package prox
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"sync"
 
 	"github.com/fgrosse/zaptest"
@@ -13,25 +15,35 @@ import (
 
 type TestExecutor struct {
 	*Executor
-	Error        error
+	Error error
+
 	mu           sync.RWMutex
 	executorDone bool
+	cancel       func()
+}
+
+type TestReporter interface {
+	Log(args ...interface{})
+	Fatal(args ...interface{})
 }
 
 func TestNewExecutor(w io.Writer) *TestExecutor {
 	e := &TestExecutor{Executor: NewExecutor(true)}
-	e.log = zaptest.LoggerWriter(w)
+	e.output = w
+	e.log = zaptest.LoggerWriter(w).Named("execut")
 
 	return e
 }
 
 func (e *TestExecutor) Run(processes ...Process) {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	e.mu.Lock()
 	e.executorDone = false
+	e.cancel = cancel
 	e.mu.Unlock()
 
 	e.log.Info("Executor starting")
-	ctx := context.Background()
 	e.Error = e.Executor.Run(ctx, processes)
 	e.log.Info("Executor finished")
 
@@ -46,9 +58,19 @@ func (e *TestExecutor) IsDone() bool {
 	return e.executorDone
 }
 
+func (e *TestExecutor) Stop() {
+	e.mu.Lock()
+	if e.cancel != nil {
+		e.cancel()
+		e.cancel = nil
+	}
+	e.mu.Unlock()
+}
+
 type TestProcess struct {
 	name        string // TODO: make settable from the outside
 	mu          sync.Mutex
+	output      io.Writer
 	started     bool
 	interrupted bool
 
@@ -58,53 +80,58 @@ type TestProcess struct {
 	interruptFinisher chan bool // to optionally block on Interrupt calls
 }
 
-func (t *TestProcess) Name() string {
-	return t.name
+func (p *TestProcess) Name() string {
+	return p.name
 }
 
-func (t *TestProcess) String() string {
-	return t.Name()
+func (p *TestProcess) String() string {
+	return p.Name()
 }
 
-func (t *TestProcess) Run(ctx context.Context, _ io.Writer, _ *zap.Logger) error { // TODO: use ctx
-	t.mu.Lock()
-	if t.started {
+func (p *TestProcess) Run(ctx context.Context, w io.Writer, logger *zap.Logger) error { // TODO: use ctx
+	p.mu.Lock()
+	if p.started {
 		return errors.New("started multiple times")
 	}
 
-	t.started = true
-	t.interrupted = false
-	t.finish = make(chan chan bool)
-	t.fail = make(chan chan bool)
-	t.mu.Unlock()
+	p.output = w
+	p.started = true
+	p.interrupted = false
+	p.finish = make(chan chan bool)
+	p.fail = make(chan chan bool)
+	p.mu.Unlock()
 
 	select {
 	case <-ctx.Done():
-		if t.interruptFinisher != nil {
-			<-t.interruptFinisher
+		logger.Debug("Context is done (interrupted)")
+		if p.interruptFinisher != nil {
+			logger.Debug("Executing interrupt finisher")
+			<-p.interruptFinisher
 		}
-		t.mu.Lock()
-		t.interrupted = true
-		t.mu.Unlock()
+		p.mu.Lock()
+		p.interrupted = true
+		p.mu.Unlock()
 		return ctx.Err()
-	case c := <-t.finish:
+	case c := <-p.finish:
+		logger.Debug("Received finish signal")
 		c <- true
 		return nil
-	case c := <-t.fail:
+	case c := <-p.fail:
+		logger.Debug("Received fail signal")
 		c <- true
 		return fmt.Errorf("TestProcess simulated a failure")
 	}
 }
 
-func (t *TestProcess) Finish() {
-	t.signal(t.finish)
+func (p *TestProcess) Finish() {
+	p.signal(p.finish)
 }
 
-func (t *TestProcess) Fail() {
-	t.signal(t.fail)
+func (p *TestProcess) Fail() {
+	p.signal(p.fail)
 }
 
-func (t *TestProcess) signal(c chan chan bool) {
+func (p *TestProcess) signal(c chan chan bool) {
 	syncChan := make(chan bool)
 	select {
 	case c <- syncChan:
@@ -115,24 +142,74 @@ func (t *TestProcess) signal(c chan chan bool) {
 	}
 }
 
-func (t *TestProcess) HasBeenStarted() bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (p *TestProcess) HasBeenStarted() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return t.started
+	return p.started
 }
 
-func (t *TestProcess) HasBeenInterrupted() bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (p *TestProcess) HasBeenInterrupted() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return t.interrupted
+	return p.interrupted
 }
 
-func (t *TestProcess) ShouldBlockOnInterrupt() {
-	t.interruptFinisher = make(chan bool)
+func (p *TestProcess) ShouldBlockOnInterrupt() {
+	p.interruptFinisher = make(chan bool)
 }
 
-func (t *TestProcess) FinishInterrupt() {
-	t.interruptFinisher <- true
+func (p *TestProcess) FinishInterrupt() {
+	p.interruptFinisher <- true
+}
+
+func (p *TestProcess) ShouldSay(t TestReporter, msg string) {
+	_, err := p.output.Write([]byte(msg))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewServerAndClient(t TestReporter, w io.Writer) (server *Server, client *Client, executor *TestExecutor, done func()) {
+	executor = TestNewExecutor(w)
+	client = &Client{logger: zaptest.LoggerWriter(w).Named("client")}
+	server = &Server{
+		Executor: executor.Executor,
+		logger:   zaptest.LoggerWriter(w).Named("server"),
+	}
+
+	done = func() {
+		log := zaptest.LoggerWriter(w).Named("test")
+		log.Info("TestNewServerAndClient: done function was called")
+		client.Close()
+		server.Close()
+		executor.Stop()
+	}
+
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		done()
+		t.Fatal(err)
+	}
+
+	server.listener, err = net.ListenTCP("tcp", addr)
+	if err != nil {
+		done()
+		t.Fatal(err)
+	}
+
+	client.conn, err = net.Dial("tcp", server.listener.Addr().String())
+	if err != nil {
+		client.conn = nil
+		done()
+		t.Fatal(err)
+	}
+
+	client.buf = bufio.NewReader(client.conn)
+
+	ctx := context.Background()
+	go server.acceptConnections(ctx)
+
+	return server, client, executor, done
 }

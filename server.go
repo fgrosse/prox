@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -14,8 +15,15 @@ import (
 // A Server wraps an Executor to expose its functionality via a unix socket.
 type Server struct {
 	*Executor
-	listener   net.Listener
 	socketPath string
+	listener   net.Listener
+	logger     *zap.Logger
+}
+
+// socketMessage is the underlying message type that is passed between a prox
+// Server and Client.
+type socketMessage struct {
+	Command string
 }
 
 // NewExecutorServer creates a new Server. This function does not start the
@@ -32,24 +40,26 @@ func NewExecutorServer(socketPath string, debug bool) *Server {
 // then starts the Executor. It is the callers responsibility to eventually call
 // Server.Close() in order to close the unix socket connect.
 func (s *Server) Run(ctx context.Context, pp []Process) error {
-	out := newOutput(pp, s.noColors).nextColored("prox", s.proxLogColor)
-	logger := NewLogger(out, s.debug)
+	if s.logger == nil {
+		out := newOutput(pp, s.noColors, os.Stdout).nextColored("prox", s.proxLogColor)
+		s.logger = NewLogger(out, s.debug)
+	}
 
 	var err error
 	s.listener, err = net.Listen("unix", s.socketPath)
 	if err != nil {
-		logger.Error("Failed to open unix socket: " + err.Error())
+		s.logger.Error("Failed to open unix socket: " + err.Error())
 		return errors.Wrap(err, "failed to open unix socket")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // always cancel context even if Executor finishes normally
 
-	go s.acceptConnections(ctx, logger)
+	go s.acceptConnections(ctx)
 	return s.Executor.Run(ctx, pp)
 }
 
-func (s *Server) acceptConnections(ctx context.Context, logger *zap.Logger) {
+func (s *Server) acceptConnections(ctx context.Context) {
 	var clientID int
 	for {
 		conn, err := s.listener.Accept()
@@ -58,13 +68,13 @@ func (s *Server) acceptConnections(ctx context.Context, logger *zap.Logger) {
 			case <-ctx.Done():
 				// error due to closing listener
 			default:
-				logger.Error("Failed to accept connection", zap.Error(err))
+				s.logger.Error("Failed to accept connection", zap.Error(err))
 			}
 			return
 		}
 
 		clientID++
-		connLog := logger.With(zap.Int("client_id", clientID))
+		connLog := s.logger.With(zap.Int("client_id", clientID))
 		connLog.Info("Accepted new socket connection from prox client")
 		go s.handleConnection(ctx, conn, connLog)
 	}
@@ -76,7 +86,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 
 	go func() {
 		<-ctx.Done()
-		logger.Debug("Closing connection to prox client")
+		logger.Debug("Closing connection to prox client because context is done")
 		err := conn.Close()
 		if err != nil {
 			logger.Error("Failed to close connection", zap.Error(err))
@@ -156,6 +166,8 @@ func (s *Server) Close() error {
 		return nil
 	}
 
-	s.log.Info("Closing unix socket")
-	return s.listener.Close()
+	// TODO: improve closing (wait until listener loop has actually finished)
+
+	s.logger.Info("Closing unix socket")
+	return s.listener.Close() // TODO: this will cause an error message to be logged
 }

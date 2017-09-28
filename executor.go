@@ -2,6 +2,8 @@ package prox
 
 import (
 	"context"
+	"io"
+	"os"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -10,6 +12,7 @@ import (
 // An Executor manages a set of processes. It is responsible for running them
 // concurrently and waits until they have finished or an error occurs.
 type Executor struct {
+	output       io.Writer
 	debug        bool
 	noColors     bool
 	proxLogColor color
@@ -42,6 +45,7 @@ const (
 // will be logged.
 func NewExecutor(debug bool) *Executor {
 	return &Executor{
+		output:       os.Stdout,
 		debug:        debug,
 		proxLogColor: colorWhite,
 	}
@@ -57,7 +61,7 @@ func (e *Executor) DisableColoredOutput() {
 // context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
-	output := newOutput(processes, e.noColors)
+	output := newOutput(processes, e.noColors, e.output)
 
 	if e.log == nil {
 		out := output.nextColored("prox", e.proxLogColor)

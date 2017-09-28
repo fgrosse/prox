@@ -87,6 +87,10 @@ func (c *Client) readLine() (string, error) {
 
 // Close closes the socket connection to the prox server.
 func (c *Client) Close() error {
+	if c.conn == nil {
+		return nil
+	}
+
 	var _ = c.write("EXIT")
 	return c.conn.Close()
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 )
@@ -17,9 +16,9 @@ type output struct {
 	prefixLength int
 }
 
-func newOutput(pp []Process, noColors bool) *output {
+func newOutput(pp []Process, noColors bool, w io.Writer) *output {
 	o := &output{
-		writer:       os.Stdout,
+		writer:       w,
 		prefixLength: longestName(pp, 8),
 	}
 
