@@ -3,11 +3,11 @@ package prox
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"os"
-	"strings"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -39,7 +39,11 @@ func NewClient(socketPath string, debug bool) (*Client, error) {
 
 func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writer) error {
 	ctx, cancel := context.WithCancel(ctx)
-	err := c.write("TAIL " + strings.Join(processNames, " "))
+
+	err := c.writeMessage(socketMessage{
+		Command: "TAIL",
+		Args:    processNames,
+	})
 	if err != nil {
 		return err
 	}
@@ -76,9 +80,8 @@ func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writ
 	}
 }
 
-func (c *Client) write(msg string) error {
-	_, err := fmt.Fprintln(c.conn, msg)
-	return err
+func (c *Client) writeMessage(msg socketMessage) error {
+	return json.NewEncoder(c.conn).Encode(msg)
 }
 
 func (c *Client) readLine() (string, error) {
@@ -91,6 +94,6 @@ func (c *Client) Close() error {
 		return nil
 	}
 
-	var _ = c.write("EXIT")
+	var _ = c.writeMessage(socketMessage{Command: "EXIT"})
 	return c.conn.Close()
 }

@@ -127,7 +127,7 @@ func (p *process) wait(ctx context.Context, logger *zap.Logger) error {
 
 		select {
 		case <-done:
-			logger.Info("Process interrupted successfully", zap.Error(err))
+			logger.Debug("Process interrupted successfully", zap.Error(err))
 		case <-time.After(p.interruptTimeout):
 			err := p.cmd.Process.Kill()
 			if err != nil {

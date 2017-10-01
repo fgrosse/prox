@@ -2,7 +2,6 @@ package prox
 
 import (
 	"context"
-
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -49,8 +48,6 @@ var _ = Describe("Server", func() {
 			Consistently(output).ShouldNot(Say("Another message from p1"))
 			Eventually(output).Should(Say("A message from p2"))
 			Eventually(output).Should(Say("And another message from p2"))
-
-			//GinkgoWriter.Write(output.Contents())
 		})
 	})
 })

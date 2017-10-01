@@ -1,8 +1,8 @@
 package prox
 
 import (
-	"bufio"
 	"context"
+	"encoding/json"
 	"io"
 	"net"
 	"os"
@@ -24,6 +24,7 @@ type Server struct {
 // Server and Client.
 type socketMessage struct {
 	Command string
+	Args    []string
 }
 
 // NewExecutorServer creates a new Server. This function does not start the
@@ -75,7 +76,7 @@ func (s *Server) acceptConnections(ctx context.Context) {
 
 		clientID++
 		connLog := s.logger.With(zap.Int("client_id", clientID))
-		connLog.Info("Accepted new socket connection from prox client")
+		connLog.Debug("Accepted new socket connection from prox client")
 		go s.handleConnection(ctx, conn, connLog)
 	}
 }
@@ -86,51 +87,59 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 
 	go func() {
 		<-ctx.Done()
-		logger.Debug("Closing connection to prox client because context is done")
+		logger.Info("Closing connection to prox client")
 		err := conn.Close()
-		if err != nil {
+		if err != nil && !isClosedConnectionError(err) {
 			logger.Error("Failed to close connection", zap.Error(err))
 		}
 	}()
 
-	r := bufio.NewReader(conn)
-	command, err := r.ReadString('\n')
-	if err == io.EOF {
-		logger.Warn("Lost connection to prox client")
+	msg, err := readMessage(conn)
+	if errors.Cause(err) == io.EOF {
+		logger.Error("Lost connection to prox client")
+		return
+	}
+	if err != nil {
+		logger.Error("Failed to read message from client", zap.Error(err))
 		return
 	}
 
-	if err != nil {
-		logger.Error("Failed to read line from client", zap.Error(err))
-	}
-
-	command = strings.TrimSpace(command)
-	logger.Debug("Received command from prox client", zap.String("command", command))
+	logger.Info("Received command from prox client", zap.Any("msg", msg))
 
 	switch {
-	case strings.HasPrefix(command, "TAIL "):
-		args := strings.Fields(command)
-		err = s.handleTailRPC(ctx, conn, args[1:], logger)
-	case command == "EXIT":
+	case msg.Command == "TAIL":
+		err = s.handleTailRPC(ctx, conn, msg, logger)
+	case msg.Command == "EXIT":
 		logger.Info("Prox client has closed the connection")
 		return
 	default:
-		logger.Error("Unknown command from prox client", zap.String("command", command))
+		logger.Error("Unknown command from prox client", zap.Any("msg", msg))
+		return
 	}
 
-	if err != nil {
+	if err != nil && !isClosedConnectionError(err) {
 		// TODO: send messages back to client
 		logger.Error("prox client error", zap.Error(err))
 	}
 }
 
-func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, args []string, logger *zap.Logger) error {
-	if len(args) == 0 {
+func readMessage(conn net.Conn) (socketMessage, error) {
+	var msg socketMessage
+	err := json.NewDecoder(conn).Decode(&msg)
+	if err != nil {
+		return msg, errors.Wrap(err, "failed to decode message")
+	}
+
+	return msg, nil
+}
+
+func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, msg socketMessage, logger *zap.Logger) error {
+	if len(msg.Args) == 0 {
 		return errors.New("no arguments for tail provided")
 	}
 
 	var outputs []*processOutput
-	for _, name := range args {
+	for _, name := range msg.Args {
 		o, ok := s.Executor.outputs[name]
 		if !ok {
 			return errors.Errorf("cannot tail unknown process %q", name)
@@ -146,17 +155,16 @@ func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, args []string
 		}
 	}()
 
-	r := bufio.NewReader(conn)
-	command, err := r.ReadString('\n')
+	msg, err := readMessage(conn)
 	if err != nil {
 		return err
 	}
 
-	command = strings.TrimSpace(command)
-	if command != "EXIT" {
-		return errors.Errorf("expected EXIT command but got %q", command)
+	if msg.Command != "EXIT" {
+		return errors.Errorf("expected EXIT command but got %q", msg.Command)
 	}
 
+	logger.Info("Client closed TAIL connection")
 	return nil
 }
 
@@ -169,5 +177,9 @@ func (s *Server) Close() error {
 	// TODO: improve closing (wait until listener loop has actually finished)
 
 	s.logger.Info("Closing unix socket")
-	return s.listener.Close() // TODO: this will cause an error message to be logged
+	return s.listener.Close()
+}
+
+func isClosedConnectionError(err error) bool {
+	return strings.Contains(err.Error(), "use of closed network connection")
 }
