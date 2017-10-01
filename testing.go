@@ -9,6 +9,8 @@ import (
 	"net"
 	"sync"
 
+	"time"
+
 	"github.com/fgrosse/zaptest"
 	"go.uber.org/zap"
 )
@@ -68,7 +70,10 @@ func (e *TestExecutor) Stop() {
 }
 
 type TestProcess struct {
-	name        string // TODO: make settable from the outside
+	name   string // TODO: make settable from the outside
+	PID    int
+	Uptime time.Duration
+
 	mu          sync.Mutex
 	output      io.Writer
 	started     bool
@@ -84,11 +89,18 @@ func (p *TestProcess) Name() string {
 	return p.name
 }
 
+func (p *TestProcess) Info() ProcessInfo {
+	return ProcessInfo{
+		PID:    p.PID,
+		Uptime: p.Uptime,
+	}
+}
+
 func (p *TestProcess) String() string {
 	return p.Name()
 }
 
-func (p *TestProcess) Run(ctx context.Context, w io.Writer, logger *zap.Logger) error { // TODO: use ctx
+func (p *TestProcess) Run(ctx context.Context, w io.Writer, logger *zap.Logger) error {
 	p.mu.Lock()
 	if p.started {
 		return errors.New("started multiple times")

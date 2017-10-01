@@ -8,6 +8,11 @@ import (
 	"os"
 	"strings"
 
+	"fmt"
+	"text/tabwriter"
+
+	"sort"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -107,6 +112,8 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 	logger.Info("Received command from prox client", zap.Any("msg", msg))
 
 	switch {
+	case msg.Command == "LIST":
+		err = s.handleListRPC(ctx, conn, msg, logger)
 	case msg.Command == "TAIL":
 		err = s.handleTailRPC(ctx, conn, msg, logger)
 	case msg.Command == "EXIT":
@@ -131,6 +138,25 @@ func readMessage(conn net.Conn) (socketMessage, error) {
 	}
 
 	return msg, nil
+}
+
+func (s *Server) handleListRPC(ctx context.Context, conn net.Conn, msg socketMessage, logger *zap.Logger) error {
+	var names []string
+	for name := range s.Executor.running {
+		names = append(names, name)
+	}
+
+	w := tabwriter.NewWriter(conn, 8, 8, 2, ' ', 0)
+	fmt.Fprintln(w, "NAME\tPID")
+
+	sort.Strings(names)
+	for _, name := range names {
+		p := s.Executor.running[name]
+		inf := p.Info()
+		fmt.Fprintln(w, fmt.Sprint(name, "\t", inf.PID))
+	}
+
+	return w.Flush()
 }
 
 func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, msg socketMessage, logger *zap.Logger) error {

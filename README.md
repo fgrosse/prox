@@ -7,5 +7,4 @@
 - configure JSON output and write rule (e.g. level=/FATAL|WARN|ERROR/i to color output)
 - allow assigning one ore many groups to processes and then start a group via `prox start <group>` or tail group logs via `prox tail <group>`
 - compile version into binary
-- rewrite git repo to only use friedrich.grosse@gmail.com
 - allow setting log level rather than passing verbose flag (maybe both?)

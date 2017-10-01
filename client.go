@@ -37,6 +37,27 @@ func NewClient(socketPath string, debug bool) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) List(ctx context.Context, output io.Writer) error {
+	err := c.writeMessage(socketMessage{Command: "LIST"})
+	if err != nil {
+		return err
+	}
+
+	for {
+		line, err := c.readLine()
+		if err != nil {
+			if err == io.EOF {
+				c.logger.Info("Server closed connection")
+				err = nil
+			}
+
+			return err
+		}
+
+		fmt.Fprint(output, line)
+	}
+}
+
 func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writer) error {
 	ctx, cancel := context.WithCancel(ctx)
 

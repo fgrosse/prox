@@ -50,4 +50,33 @@ var _ = Describe("Server", func() {
 			Eventually(output).Should(Say("And another message from p2"))
 		})
 	})
+
+	Describe("List", func() {
+		It("should return a list of all currently running processes to the Client", func() {
+			t := GinkgoT()
+			_, client, executor, done := TestNewServerAndClient(t, GinkgoWriter)
+			defer done()
+
+			p1 := &TestProcess{name: "p1", PID: 101}
+			p2 := &TestProcess{name: "p2", PID: 102}
+
+			go executor.Run(p1, p2)
+
+			ctx := context.Background()
+			output := NewBuffer()
+
+			Eventually(p1.HasBeenStarted).Should(BeTrue())
+			Eventually(p2.HasBeenStarted).Should(BeTrue())
+
+			go func() {
+				defer GinkgoRecover()
+				err := client.List(ctx, output)
+				Expect(err).NotTo(HaveOccurred())
+			}()
+
+			Eventually(output).Should(Say("NAME    PID"))
+			Eventually(output).Should(Say("p1      101"))
+			Eventually(output).Should(Say("p2      102"))
+		})
+	})
 })

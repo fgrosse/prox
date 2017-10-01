@@ -19,7 +19,13 @@ import (
 // Executor.
 type Process interface {
 	Name() string
+	Info() ProcessInfo
 	Run(context.Context, io.Writer, *zap.Logger) error
+}
+
+type ProcessInfo struct {
+	PID    int
+	Uptime time.Duration
 }
 
 // process is a Process implementation that uses os/exec to start system
@@ -50,6 +56,17 @@ func NewProcess(name, script string, env Environment) Process {
 // specific process.
 func (p *process) Name() string {
 	return p.name
+}
+
+func (p *process) Info() ProcessInfo {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.cmd == nil || p.cmd.Process == nil {
+		return ProcessInfo{PID: -1}
+	}
+
+	return ProcessInfo{PID: p.cmd.Process.Pid}
 }
 
 // Run starts the shell process and blocks until it finishes or the context is
