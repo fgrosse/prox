@@ -35,6 +35,7 @@ type process struct {
 	script string
 	env    Environment
 
+	startedAt        time.Time
 	interruptTimeout time.Duration
 
 	mu  sync.Mutex
@@ -66,7 +67,10 @@ func (p *process) Info() ProcessInfo {
 		return ProcessInfo{PID: -1}
 	}
 
-	return ProcessInfo{PID: p.cmd.Process.Pid}
+	return ProcessInfo{
+		PID:    p.cmd.Process.Pid,
+		Uptime: time.Since(p.startedAt),
+	}
 }
 
 // Run starts the shell process and blocks until it finishes or the context is
@@ -89,6 +93,7 @@ func (p *process) Run(ctx context.Context, output io.Writer, logger *zap.Logger)
 	p.cmd.Stderr = output
 	p.cmd.Env = p.env.List()
 
+	p.startedAt = time.Now()
 	err := p.cmd.Start()
 	p.mu.Unlock()
 

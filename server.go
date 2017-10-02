@@ -3,15 +3,14 @@ package prox
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"os"
-	"strings"
-
-	"fmt"
-	"text/tabwriter"
-
 	"sort"
+	"strings"
+	"text/tabwriter"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -147,13 +146,16 @@ func (s *Server) handleListRPC(ctx context.Context, conn net.Conn, msg socketMes
 	}
 
 	w := tabwriter.NewWriter(conn, 8, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tPID")
+	fmt.Fprintln(w, "NAME\tPID\tUPTIME")
 
 	sort.Strings(names)
 	for _, name := range names {
 		p := s.Executor.running[name]
 		inf := p.Info()
-		fmt.Fprintln(w, fmt.Sprint(name, "\t", inf.PID))
+		fmt.Fprintln(w, fmt.Sprintf(
+			"%s\t%v\t%v",
+			name, inf.PID, inf.Uptime.Round(time.Second)),
+		)
 	}
 
 	return w.Flush()
