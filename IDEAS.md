@@ -10,5 +10,6 @@
 ### Client / Server
 
 - command or config to mark processes (highlight its output either via background color or marks on the left (e.g. ┃, ║, ┋, …)
+  this could also use more advanced ad hoc rules if structured logging is enabled (e.g. host="foobar")
 - command or config to scale processes (start new instances)
 - command to simulate process crashes without bringing down the whole stack (can already be done via kill)

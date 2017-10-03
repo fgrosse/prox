@@ -1,12 +1,12 @@
 .PHONY: test install release
 
-VERSION=$(shell git describe --tags)
+VERSION=$(shell git describe)
 
 test:
 	go test -race -cover
 
 install:
-	go install ./cmd/prox
+	go build -ldflags "-s -w -X main.Version=$(VERSION)" -o $$GOPATH/bin/prox ./cmd/prox
 
 release: LICENSE-THIRD-PARTY
 	mkdir -p releases
