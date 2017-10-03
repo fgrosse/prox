@@ -42,7 +42,7 @@ func NewClient(socketPath string, debug bool) (*Client, error) {
 // List fetches a list of running processes from the server and prints it via
 // the given output.
 func (c *Client) List(ctx context.Context, output io.Writer) error {
-	err := c.writeMessage(socketMessage{Command: "LIST"})
+	err := c.sendMessage(socketMessage{Command: "LIST"})
 	if err != nil {
 		return err
 	}
@@ -66,13 +66,13 @@ func (c *Client) List(ctx context.Context, output io.Writer) error {
 	return w.Flush()
 }
 
+// Tail requests and "follows" the logs for a set of processes from a server and
+// prints them to the output. This function blocks until the context is done or
+// the connection to the server is closed by either side.
 func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writer) error {
 	ctx, cancel := context.WithCancel(ctx)
 
-	err := c.writeMessage(socketMessage{
-		Command: "TAIL",
-		Args:    processNames,
-	})
+	err := c.sendMessage(socketMessage{Command: "TAIL", Args: processNames})
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writ
 	lines := make(chan string)
 	go func() {
 		for {
-			line, err := c.readLine()
+			line, err := c.buf.ReadString('\n')
 			if err != nil {
 				if err == io.EOF {
 					c.logger.Info("Server closed connection")
@@ -109,12 +109,8 @@ func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writ
 	}
 }
 
-func (c *Client) writeMessage(msg socketMessage) error {
+func (c *Client) sendMessage(msg socketMessage) error {
 	return json.NewEncoder(c.conn).Encode(msg)
-}
-
-func (c *Client) readLine() (string, error) {
-	return c.buf.ReadString('\n')
 }
 
 // Close closes the socket connection to the prox server.
@@ -123,6 +119,6 @@ func (c *Client) Close() error {
 		return nil
 	}
 
-	var _ = c.writeMessage(socketMessage{Command: "EXIT"})
+	var _ = c.sendMessage(socketMessage{Command: "EXIT"})
 	return c.conn.Close()
 }

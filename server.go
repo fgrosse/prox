@@ -95,7 +95,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 		}
 	}()
 
-	msg, err := readMessage(conn)
+	msg, err := s.readMessage(conn)
 	if errors.Cause(err) == io.EOF {
 		logger.Error("Lost connection to prox client")
 		return
@@ -109,9 +109,9 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 
 	switch {
 	case msg.Command == "LIST":
-		err = s.handleListRPC(ctx, conn, msg, logger)
+		err = s.handleListCommand(ctx, conn, msg, logger)
 	case msg.Command == "TAIL":
-		err = s.handleTailRPC(ctx, conn, msg, logger)
+		err = s.handleTailCommand(ctx, conn, msg, logger)
 	case msg.Command == "EXIT":
 		logger.Info("Prox client has closed the connection")
 		return
@@ -126,7 +126,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn, logger *za
 	}
 }
 
-func readMessage(conn net.Conn) (socketMessage, error) {
+func (s *Server) readMessage(conn net.Conn) (socketMessage, error) {
 	var msg socketMessage
 	err := json.NewDecoder(conn).Decode(&msg)
 	if err != nil {
@@ -136,7 +136,7 @@ func readMessage(conn net.Conn) (socketMessage, error) {
 	return msg, nil
 }
 
-func (s *Server) handleListRPC(ctx context.Context, conn net.Conn, msg socketMessage, logger *zap.Logger) error {
+func (s *Server) handleListCommand(ctx context.Context, conn net.Conn, msg socketMessage, logger *zap.Logger) error {
 	var names []string
 	for name := range s.Executor.running {
 		names = append(names, name)
@@ -151,7 +151,7 @@ func (s *Server) handleListRPC(ctx context.Context, conn net.Conn, msg socketMes
 	return json.NewEncoder(conn).Encode(resp)
 }
 
-func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, msg socketMessage, logger *zap.Logger) error {
+func (s *Server) handleTailCommand(ctx context.Context, conn net.Conn, msg socketMessage, logger *zap.Logger) error {
 	if len(msg.Args) == 0 {
 		return errors.New("no arguments for tail provided")
 	}
@@ -173,7 +173,7 @@ func (s *Server) handleTailRPC(ctx context.Context, conn net.Conn, msg socketMes
 		}
 	}()
 
-	msg, err := readMessage(conn)
+	msg, err := s.readMessage(conn)
 	if err != nil {
 		return err
 	}
