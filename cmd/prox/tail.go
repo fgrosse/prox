@@ -17,7 +17,8 @@ func init() {
 }
 
 var tailCmd = &cobra.Command{
-	Use: "tail <process>",
+	Use:   "tail <process>",
+	Short: "Follow the log output of running processes",
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cliContext()
 		debug := viper.GetBool("verbose")
