@@ -1,10 +1,18 @@
+.PHONY: test install release
+
 VERSION=$(shell git describe --tags)
 
-.PHONY: release
-release:
+test:
+	go test -race -cover
+
+install:
+	go install ./cmd/prox
+
+release: LICENSE-THIRD-PARTY
 	mkdir -p releases
 	mkdir -p release-$(VERSION)
 	cp LICENSE release-$(VERSION)
+	cp LICENSE-THIRD-PARTY release-$(VERSION)
 	cp README.md release-$(VERSION)
 
 	# Linux 64
