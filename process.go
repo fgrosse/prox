@@ -24,6 +24,7 @@ type Process interface {
 }
 
 type ProcessInfo struct {
+	Name   string
 	PID    int
 	Uptime time.Duration
 }

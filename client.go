@@ -8,6 +8,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"text/tabwriter"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -37,25 +39,31 @@ func NewClient(socketPath string, debug bool) (*Client, error) {
 	}, nil
 }
 
+// List fetches a list of running processes from the server and prints it via
+// the given output.
 func (c *Client) List(ctx context.Context, output io.Writer) error {
 	err := c.writeMessage(socketMessage{Command: "LIST"})
 	if err != nil {
 		return err
 	}
 
-	for {
-		line, err := c.readLine()
-		if err != nil {
-			if err == io.EOF {
-				c.logger.Info("Server closed connection")
-				err = nil
-			}
-
-			return err
-		}
-
-		fmt.Fprint(output, line)
+	var resp []ProcessInfo
+	err = json.NewDecoder(c.conn).Decode(&resp)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode server response")
 	}
+
+	w := tabwriter.NewWriter(output, 8, 8, 2, ' ', 0)
+	fmt.Fprintln(w, "NAME\tPID\tUPTIME")
+
+	for _, inf := range resp {
+		fmt.Fprintln(w, fmt.Sprintf(
+			"%s\t%v\t%v",
+			inf.Name, inf.PID, inf.Uptime.Round(time.Second)),
+		)
+	}
+
+	return w.Flush()
 }
 
 func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writer) error {

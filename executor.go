@@ -156,3 +156,16 @@ func (e *Executor) waitForAll(interruptAll func()) error {
 
 	return errors.Wrap(firstErr, "first error")
 }
+
+// Info returns information about a running process. If there is no such process
+// running process a ProcessInfo with a PID of -1 is returned.
+func (e *Executor) Info(processName string) ProcessInfo {
+	p, ok := e.running[processName]
+	if !ok {
+		return ProcessInfo{PID: -1}
+	}
+
+	inf := p.Info()
+	inf.Name = processName
+	return inf
+}
