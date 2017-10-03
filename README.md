@@ -1,14 +1,46 @@
-# Ideas for future features
+# Prox [![Build Status](https://travis-ci.org/fgrosse/prox.png)](https://travis-ci.org/fgrosse/prox) [![GitHub release](https://img.shields.io/badge/version-0.5-blue.svg?style=flat)](https://github.com/fgrosse/prox/releases)  [![License](https://img.shields.io/badge/license-MIT-4183c4.svg)](https://github.com/fgrosse/prox/blob/master/LICENSE) [![GoDoc](https://godoc.org/github.com/fgrosse/prox?status.svg)](https://godoc.org/github.com/fgrosse/prox) [![Coverage Status](https://coveralls.io/repos/github/fgrosse/prox/badge.svg?branch=master)](https://coveralls.io/github/fgrosse/prox?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/fgrosse/prox)](https://goreportcard.com/report/github.com/fgrosse/prox)
 
-## General
+Prox is yet another process runner for Procfile-based applications. 
 
-- limit characters per row in output based on terminal width (with opt-out))
-- configure JSON output and write rule (e.g. level=/FATAL|WARN|ERROR/i to color output)
-- allow assigning one ore many groups to processes and then start a group via `prox start <group>` or tail group logs via `prox tail <group>`
-- keep process logs in tmp dir and allow tailing logs from start
+TODO: complete section and explain what Prox does and why this is useful
 
-## Client / Server
+## Similar Projects
 
-- command or config to mark processes (highlight its output either via background color or marks on the left (e.g. ┃, ║, ┋, …)
-- command or config to scale processes (start new instances)
-- command to simulate process crashes without bringing down the whole stack (can already be done via kill)
+- [forego][forego]
+- [goreman][goreman]
+- [spm][spm]
+- [overmind][overmind]
+
+TODO: how is prox different from the other projects
+
+## Installation
+
+TODO
+
+## Usage
+
+TODO
+
+## Credits
+
+TODO
+
+## License
+
+Prox is licensed under the the MIT license. Please see the [LICENSE](LICENSE)
+file for details. The individual licenses of the vendored dependencies can be
+found in the [LICENSE-THIRD-PARTY](LICENSE-THIRD-PARTY) file.
+
+## Contributing
+
+Contributions are always welcome (use pull requests). Before you start working on
+a bigger feature its always best to discuss ideas in a new github issue. For each
+pull request make sure that you covered your changes and additions with unit tests.
+
+Please keep in mind that I might not always be able to respond immediately but I
+usually try to react within the week ☺.
+
+[forego]: https://github.com/ddollar/forego
+[goreman]: https://github.com/mattn/goreman
+[spm]: https://github.com/bytegust/spm
+[overmind]: https://github.com/DarthSim/overmind
