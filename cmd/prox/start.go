@@ -24,9 +24,9 @@ const (
 func init() {
 	cmd.AddCommand(startCmd)
 
-	startCmd.Flags().Bool("no-colors", false, "disable colored output")
-	startCmd.Flags().String("env-file", ".env", "path to the env file")
-	startCmd.Flags().StringP("proc-file", "f", "Procfile", "path to the Procfile")
+	startCmd.Flags().Bool("no-colour", false, "disable colored output")
+	startCmd.Flags().StringP("env", "e", ".env", "path to the env file")
+	startCmd.Flags().StringP("procfile", "f", "Procfile", "path to the Procfile")
 	startCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
 }
 
@@ -45,7 +45,7 @@ func run(cmd *cobra.Command, _ []string) {
 	defer logger.Sync()
 
 	socketPath := GetStringFlag(cmd, "socket", logger)
-	disableColors := GetBoolFlag(cmd, "no-colors", logger)
+	disableColors := GetBoolFlag(cmd, "no-color", logger)
 
 	env, err := environment(flags)
 	if err != nil {
@@ -90,9 +90,9 @@ func cliContext() context.Context {
 }
 
 func environment(flags *pflag.FlagSet) (prox.Environment, error) {
-	path, err := flags.GetString("env-file")
+	path, err := flags.GetString("env")
 	if err != nil {
-		return prox.Environment{}, errors.New("failed to get --env-file flag: " + err.Error())
+		return prox.Environment{}, errors.New("failed to get --env flag: " + err.Error())
 	}
 
 	if path == "" {
@@ -115,9 +115,9 @@ func environment(flags *pflag.FlagSet) (prox.Environment, error) {
 }
 
 func processes(flags *pflag.FlagSet, env prox.Environment) ([]prox.Process, error) {
-	path, err := flags.GetString("proc-file")
+	path, err := flags.GetString("procfile")
 	if err != nil {
-		return nil, errors.New("failed to get --proc-file flag: " + err.Error())
+		return nil, errors.New("failed to get --procfile flag: " + err.Error())
 	}
 
 	f, err := os.Open(path)
