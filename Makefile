@@ -1,5 +1,6 @@
 VERSION=$(shell git describe --tags)
 
+.PHONY: release
 release:
 	mkdir -p releases
 	mkdir -p release-$(VERSION)
@@ -27,3 +28,15 @@ release:
 	mv prox-$(VERSION)-*.tar.gz releases
 
 	rm -R release-$(VERSION)
+
+
+LICENSE-THIRD-PARTY: $(shell find vendor -name LICENSE)
+	@echo -e "Third party libraries\n" > $@
+	@for f in $$(find vendor -name LICENSE -printf '%P\n' | xargs dirname); do \
+		echo "Including license of $$f"; \
+		echo "================================================================================" >> $@; \
+		echo "$$f" >> $@; \
+		echo "================================================================================" >> $@; \
+		cat "vendor/$$f/LICENSE" >> $@; \
+		echo -e "\n" >> $@; \
+	done
