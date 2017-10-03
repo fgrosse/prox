@@ -24,7 +24,7 @@ const (
 func init() {
 	cmd.AddCommand(startCmd)
 
-	startCmd.Flags().Bool("no-colour", false, "disable colored output")
+	startCmd.Flags().Bool("no-color", false, "disable colored output")
 	startCmd.Flags().StringP("env", "e", ".env", "path to the env file")
 	startCmd.Flags().StringP("procfile", "f", "Procfile", "path to the Procfile")
 	startCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
