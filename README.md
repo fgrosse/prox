@@ -1,4 +1,4 @@
-# Prox [![Build Status](https://travis-ci.org/fgrosse/prox.png)](https://travis-ci.org/fgrosse/prox) [![GitHub release](https://img.shields.io/badge/version-0.5-blue.svg?style=flat)](https://github.com/fgrosse/prox/releases)  [![License](https://img.shields.io/badge/license-MIT-4183c4.svg)](https://github.com/fgrosse/prox/blob/master/LICENSE) [![GoDoc](https://godoc.org/github.com/fgrosse/prox?status.svg)](https://godoc.org/github.com/fgrosse/prox) [![Coverage Status](https://coveralls.io/repos/github/fgrosse/prox/badge.svg?branch=master)](https://coveralls.io/github/fgrosse/prox?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/fgrosse/prox)](https://goreportcard.com/report/github.com/fgrosse/prox)
+# Prox [![Build Status](https://travis-ci.org/fgrosse/prox.png)](https://travis-ci.org/fgrosse/prox) [![GitHub release](https://img.shields.io/github/tag/fgrosse/prox.svg?style=flat)](https://github.com/fgrosse/prox/releases)  [![License](https://img.shields.io/github/license/fgrosse/prox.svg)](https://github.com/fgrosse/prox/blob/master/LICENSE) [![GoDoc](https://godoc.org/github.com/fgrosse/prox?status.svg)](https://godoc.org/github.com/fgrosse/prox) [![Coverage Status](https://coveralls.io/repos/github/fgrosse/prox/badge.svg?branch=master)](https://coveralls.io/github/fgrosse/prox?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/fgrosse/prox)](https://goreportcard.com/report/github.com/fgrosse/prox)
 
 Prox is a process runner for Procfile-based applications inspired by [foreman][foreman].
 With `prox` you can run several processes defined in a `Procfile` concurrently
@@ -126,10 +126,18 @@ of `prox help`.
 - [honcho][honcho]: a Python port of foreman
 - [spm][spm]: Simple Process Manager with client/server communication via unix sockets (Go)
 - [overmind][overmind]: a process manager for Procfile-based applications that relies on tmux sessions
+- [and more …][more-similar]
+
+## Dependencies
+
+Prox uses [go dep][go-dep] as dependency management tool. All vendored dependencies
+are specified in the [Gopkg.toml](Gopkg.toml) file and are checked in in the [vendor](vendor)
+directory. Prox itself mainly relies on the Go standard library, [zap][zap] for logging,
+[cobra/viper][cobra] for the CLI and [pkg/errors][pkg-errors] for error wrapping.
 
 ## License
 
-Prox is licensed under the the MIT license. Please see the [LICENSE](LICENSE)
+Prox is licensed under the BSD 2-clause License. Please see the [LICENSE](LICENSE)
 file for details. The individual licenses of the vendored dependencies can be
 found in the [LICENSE-THIRD-PARTY](LICENSE-THIRD-PARTY) file.
 
@@ -150,3 +158,8 @@ usually try to react within the week ☺.
 [overmind]: https://github.com/DarthSim/overmind
 [releases]: https://github.com/fgrosse/prox/releases
 [foreman-blog]: http://blog.daviddollar.org/2011/05/06/introducing-foreman.html
+[more-similar]: https://github.com/ddollar/foreman#ports
+[go-dep]: https://github.com/golang/dep
+[zap]: https://godoc.org/go.uber.org/zap
+[cobra]: https://github.com/spf13/cobra
+[pkg-errors]: https://github.com/pkg/errors
