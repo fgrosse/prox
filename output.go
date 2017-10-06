@@ -1,11 +1,15 @@
 package prox
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 // output provides synchronized and colored *processOutput instances.
@@ -14,6 +18,14 @@ type output struct {
 	writer       io.Writer
 	colors       *colorPalette
 	prefixLength int
+}
+
+// processOutput is an io.Writer that is used to write all output of a single
+// process. New processOutput instances should be created via output.next(…).
+type processOutput struct {
+	mu      sync.Mutex
+	writers []io.Writer
+	prefix  string
 }
 
 func newOutput(pp []Process, noColors bool, w io.Writer) *output {
@@ -64,21 +76,13 @@ func (o *output) nextColored(name string, c color) *processOutput {
 	return po
 }
 
-// Write implements io.Writer by delegating all writes to os writer in a
+// Write implements io.Writer by delegating all writes to o.writer in a
 // synchronized manner.
 func (o *output) Write(b []byte) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	return o.writer.Write(b)
-}
-
-// processOutput is an io.Writer that is used to write all output of a single
-// process. New processOutput instances should be created via output.next(…).
-type processOutput struct {
-	mu      sync.Mutex
-	writers []io.Writer
-	prefix  string
 }
 
 func newProcessOutput(w io.Writer) *processOutput {
@@ -130,4 +134,108 @@ func (o *processOutput) formatMsg(p []byte) string {
 	}
 
 	return msg.String()
+}
+
+type processJSONOutput struct {
+	writer io.Writer
+	buffer *bytes.Buffer
+	reader *bufio.Reader
+
+	messageField string
+	levelField   string
+}
+
+func newProcessJSONOutput(w io.Writer) *processJSONOutput {
+	b := new(bytes.Buffer)
+	return &processJSONOutput{
+		writer:       w,
+		buffer:       b,
+		reader:       bufio.NewReader(b),
+		messageField: "message",
+		levelField:   "level",
+	}
+}
+
+func (o *processJSONOutput) Write(p []byte) (int, error) {
+	n, err := o.buffer.Write(p)
+	if err != nil {
+		return n, err
+	}
+
+	line, err := o.reader.ReadBytes('\n')
+	if err == io.EOF {
+		// we did not write enough data into the buffer yet
+		return n, nil
+	}
+	if err != nil {
+		return n, errors.Wrap(err, "line buffer")
+	}
+
+	// TODO: check the read parts are eventually freed from the buffer
+	m := map[string]interface{}{}
+	err = json.Unmarshal(line, &m)
+	if err != nil {
+		return n, errors.Wrap(err, "parsing JSON message")
+	}
+
+	msg := o.stringField(m, o.messageField)
+	delete(m, o.messageField)
+
+	var col color
+	if lvl := o.stringField(m, o.levelField); lvl != "" {
+		delete(m, o.levelField)
+		if msg != "" {
+			msg = "\t" + msg
+		}
+		msg = fmt.Sprintf("[%s]%s", strings.ToUpper(lvl), msg)
+
+		if lvl == "error" {
+			col = colorRed
+		}
+	}
+
+	if len(m) > 0 {
+		extra, err := o.prettyJSON(m)
+		if err != nil {
+			return n, err
+		}
+		msg = msg + "\t" + extra
+	}
+
+	if col != "" {
+		msg = colored(col, msg)
+	}
+
+	_, err = o.writer.Write([]byte(msg + "\n"))
+	return n, err
+}
+
+func (*processJSONOutput) stringField(m map[string]interface{}, key string) string {
+	v, ok := m[key]
+	if !ok {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
+}
+
+func (*processJSONOutput) prettyJSON(i interface{}) (string, error) {
+	b, err := json.MarshalIndent(i, "", "")
+	if err != nil {
+		return "", err
+	}
+
+	b = bytes.Map(func(r rune) rune {
+		if r == '\n' {
+			return ' '
+		}
+		return r
+	}, b)
+
+	return string(b), nil
 }

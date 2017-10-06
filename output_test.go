@@ -2,6 +2,8 @@ package prox
 
 import (
 	"bytes"
+	"io"
+	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -80,6 +82,67 @@ var _ = Describe("processOutput", func() {
 			// It may happen that we fail to write to a connected client for some reason.
 			// In this case we must ensure that we keep emitted log output in the main prox process.
 			// The issue is that the currently used multiwriter will fail upon the first error.
+		})
+	})
+})
+
+var _ = Describe("processJSONOutput", func() {
+	writeLine := func(w io.Writer, s string) {
+		_, err := w.Write([]byte(s + "\n"))
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	It("should output the message as well readable text", func() {
+		w := new(bytes.Buffer)
+		o := newProcessJSONOutput(w)
+
+		writeLine(o, `{"level": "info", "message": "Hello World", "foo": "bar"}`)
+		writeLine(o, `{"level": "info", "message": "An error has occurred", "n":42, "object": {"test":true}}`)
+
+		Expect(w.String()).To(Equal(strings.Join([]string{
+			"[INFO]\tHello World\t" + `{ "foo": "bar" }`,
+			"[INFO]\tAn error has occurred\t" + `{ "n": 42, "object": { "test": true } }`,
+		}, "\n") + "\n"))
+	})
+
+	It("should color messages based on the parsed log level", func() {
+		w := new(bytes.Buffer)
+		o := newProcessJSONOutput(w)
+
+		writeLine(o, `{"level": "info", "message": "Hello World"}`)
+		writeLine(o, `{"level": "error", "message": "An error has occurred"}`)
+
+		Expect(w.String()).To(Equal(strings.Join([]string{
+			"[INFO]\tHello World",
+			colored(colorRed, "[ERROR]\tAn error has occurred"),
+		}, "\n") + "\n"))
+	})
+
+	Describe("weird input", func() {
+		It("should not crash if the message field is not present", func() {
+			w := new(bytes.Buffer)
+			o := newProcessJSONOutput(w)
+
+			writeLine(o, `{"level": "info"}`)
+			writeLine(o, `{"level": "info", "n":42, "object": {"test":true}}`)
+
+			Expect(w.String()).To(Equal(strings.Join([]string{
+				"[INFO]",
+				"[INFO]\t" + `{ "n": 42, "object": { "test": true } }`,
+			}, "\n") + "\n"))
+		})
+
+		It("should not crash if the level field is not present", func() {
+			w := new(bytes.Buffer)
+			o := newProcessJSONOutput(w)
+
+			writeLine(o, `{"message": "Hello World", "foo": "bar"}`)
+			writeLine(o, `{"message": "An error has occurred", "n":42, "object": {"test":true}}`)
+
+			Expect(w.String()).To(Equal(strings.Join([]string{
+				"Hello World\t" + `{ "foo": "bar" }`,
+				"An error has occurred\t" + `{ "n": 42, "object": { "test": true } }`,
+			}, "\n") + "\n"))
 		})
 	})
 })

@@ -1,5 +1,7 @@
 package prox
 
+import "fmt"
+
 type color string
 
 const (
@@ -43,4 +45,8 @@ func (p *colorPalette) next() color {
 	}
 
 	return c
+}
+
+func colored(c color, s string) string {
+	return fmt.Sprint(c, s, colorDefault)
 }
