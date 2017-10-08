@@ -136,27 +136,24 @@ func (o *processOutput) formatMsg(p []byte) string {
 	return msg.String()
 }
 
-type processJSONOutput struct {
-	writer io.Writer
-	buffer *bytes.Buffer
-	reader *bufio.Reader
-
-	messageField string
-	levelField   string
+// a bufferedWriter is an io.Writer that buffers written messages until the next
+// new line character and then write every line via its embedded writer.
+type bufferedWriter struct {
+	io.Writer               // the writer we are eventually emitting our output to
+	buffer    *bytes.Buffer // contains all bytes written up to the next new line
+	reader    *bufio.Reader // used to read lines from the buffer
 }
 
-func newProcessJSONOutput(w io.Writer) *processJSONOutput {
+func newBufferedProcessOutput(w io.Writer) io.Writer {
 	b := new(bytes.Buffer)
-	return &processJSONOutput{
-		writer:       w,
-		buffer:       b,
-		reader:       bufio.NewReader(b),
-		messageField: "message",
-		levelField:   "level",
+	return &bufferedWriter{
+		Writer: w,
+		buffer: b,
+		reader: bufio.NewReader(b),
 	}
 }
 
-func (o *processJSONOutput) Write(p []byte) (int, error) {
+func (o *bufferedWriter) Write(p []byte) (int, error) {
 	n, err := o.buffer.Write(p)
 	if err != nil {
 		return n, err
@@ -164,7 +161,8 @@ func (o *processJSONOutput) Write(p []byte) (int, error) {
 
 	line, err := o.reader.ReadBytes('\n')
 	if err == io.EOF {
-		// we did not write enough data into the buffer yet
+		// we did not write enough data into the buffer yet so we return and
+		// wait for more data to be written in the future.
 		return n, nil
 	}
 	if err != nil {
@@ -172,10 +170,32 @@ func (o *processJSONOutput) Write(p []byte) (int, error) {
 	}
 
 	// TODO: check the read parts are eventually freed from the buffer
+	_, err = o.Writer.Write(line)
+	return n, err
+}
+
+// a processJSONOutput is an io.Writer for processes which emit JSON messages.
+// This writer expects that it will always receive complete json encoded
+// messages so its best to wrap each processJSONOutput into a bufferedWriter.
+type processJSONOutput struct {
+	io.Writer    // the writer we are eventually emitting our formatted output to
+	messageField string
+	levelField   string
+}
+
+func newProcessJSONOutput(w io.Writer) io.Writer {
+	return newBufferedProcessOutput(&processJSONOutput{
+		Writer:       w,
+		messageField: "message",
+		levelField:   "level",
+	})
+}
+
+func (o *processJSONOutput) Write(line []byte) (int, error) {
 	m := map[string]interface{}{}
-	err = json.Unmarshal(line, &m)
+	err := json.Unmarshal(line, &m)
 	if err != nil {
-		return n, errors.Wrap(err, "parsing JSON message")
+		return 0, errors.Wrap(err, "parsing JSON message")
 	}
 
 	msg := o.stringField(m, o.messageField)
@@ -197,7 +217,7 @@ func (o *processJSONOutput) Write(p []byte) (int, error) {
 	if len(m) > 0 {
 		extra, err := o.prettyJSON(m)
 		if err != nil {
-			return n, err
+			return 0, err
 		}
 		msg = msg + "\t" + extra
 	}
@@ -206,10 +226,12 @@ func (o *processJSONOutput) Write(p []byte) (int, error) {
 		msg = colored(col, msg)
 	}
 
-	_, err = o.writer.Write([]byte(msg + "\n"))
-	return n, err
+	return o.Writer.Write([]byte(msg + "\n"))
 }
 
+// stringField attempts to extract a string field stored under the given key in
+// the map. The empty string is returned if no such key exists in m or if its
+// value is not a string.
 func (*processJSONOutput) stringField(m map[string]interface{}, key string) string {
 	v, ok := m[key]
 	if !ok {
@@ -224,6 +246,7 @@ func (*processJSONOutput) stringField(m map[string]interface{}, key string) stri
 	return s
 }
 
+// prettyJSON marshals i into a JSON pretty printed single line format.
 func (*processJSONOutput) prettyJSON(i interface{}) (string, error) {
 	b, err := json.MarshalIndent(i, "", "")
 	if err != nil {
