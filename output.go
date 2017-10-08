@@ -44,7 +44,7 @@ func newOutput(pp []Process, noColors bool, w io.Writer) *output {
 func longestName(pp []Process, minLength int) int {
 	var longest string
 	for _, p := range pp {
-		if n := p.Name(); len(n) > len(longest) {
+		if n := p.Name; len(n) > len(longest) {
 			longest = n
 		}
 	}

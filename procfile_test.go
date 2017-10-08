@@ -53,9 +53,7 @@ var _ = Describe("ParseProcFile", func() {
 				processes, err := ParseProcFile(strings.NewReader(content), env)
 				Expect(err).NotTo(HaveOccurred())
 				for _, p := range processes {
-					p, ok := p.(*systemProcess)
-					Expect(ok).To(BeTrue())
-					Expect(p.env).To(Equal(env))
+					Expect(p.Env).To(Equal(env))
 				}
 			})
 		})
@@ -64,6 +62,6 @@ var _ = Describe("ParseProcFile", func() {
 
 func ContainShellTask(name, commandLine string) types.GomegaMatcher {
 	return &matchers.ContainElementMatcher{
-		Element: NewProcess(name, commandLine, Environment{}),
+		Element: Process{Name: name, Script: commandLine, Env: Environment{}},
 	}
 }

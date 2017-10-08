@@ -16,17 +16,22 @@ type Executor struct {
 	debug        bool
 	noColors     bool
 	proxLogColor color
-	log          *zap.Logger
-	running      map[string]Process
+	running      map[string]process
 	outputs      map[string]*processOutput
 	messages     chan message
+}
+
+type Process struct {
+	Name   string
+	Script string
+	Env    Environment
 }
 
 // messages are passed to signal that a specific process has finished along with
 // its reason for termination (i.e. status). For each started process we expect
 // a single message to eventually be sent to the Executor.
 type message struct {
-	p      Process
+	p      process
 	status status
 	err    error
 }
@@ -62,34 +67,40 @@ func (e *Executor) DisableColoredOutput() {
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
 	output := newOutput(processes, e.noColors, e.output)
-
-	if e.log == nil {
-		out := output.nextColored("prox", e.proxLogColor)
-		e.log = NewLogger(out, e.debug)
-	}
+	out := output.nextColored("prox", e.proxLogColor)
+	logger := NewLogger(out, e.debug)
 
 	// make sure all log output is flushed before we leave this function
-	defer e.log.Sync()
+	defer logger.Sync()
+	go e.monitorContext(ctx, logger)
 
-	go e.monitorContext(ctx)
-	ctx, cancel := context.WithCancel(ctx)
-	e.startAll(ctx, processes, output)
-	return e.waitForAll(cancel)
+	pp := make([]process, len(processes))
+	for i, p := range processes {
+		pp[i] = NewProcess(p.Name, p.Script, p.Env)
+	}
+
+	return e.run(ctx, output, pp, logger)
 }
 
-func (e *Executor) monitorContext(ctx context.Context) {
+func (e *Executor) run(ctx context.Context, output *output, processes []process, logger *zap.Logger) error {
+	ctx, cancel := context.WithCancel(ctx)
+	e.startAll(ctx, processes, output, logger)
+	return e.waitForAll(cancel, logger)
+}
+
+func (e *Executor) monitorContext(ctx context.Context, log *zap.Logger) {
 	<-ctx.Done()
 	if ctx.Err() == context.Canceled {
-		e.log.Info("Received interrupt signal")
+		log.Info("Received interrupt signal")
 	}
 }
 
 // StartAll starts all processes in a separate goroutine and then returns
 // immediately.
-func (e *Executor) startAll(ctx context.Context, pp []Process, output *output) {
-	e.log.Info("Starting processes", zap.Int("amount", len(pp)))
+func (e *Executor) startAll(ctx context.Context, pp []process, output *output, logger *zap.Logger) {
+	logger.Info("Starting processes", zap.Int("amount", len(pp)))
 
-	e.running = map[string]Process{}
+	e.running = map[string]process{}
 	e.outputs = map[string]*processOutput{}
 	e.messages = make(chan message)
 
@@ -97,16 +108,16 @@ func (e *Executor) startAll(ctx context.Context, pp []Process, output *output) {
 		name := p.Name()
 		e.running[name] = p
 		e.outputs[name] = output.next(name)
-		go e.run(ctx, p, e.outputs[name])
+		go e.runProcess(ctx, p, e.outputs[name], logger)
 	}
 }
 
-// Run starts a single process and blocks until it has completed or failed.
-func (e *Executor) run(ctx context.Context, p Process, output *processOutput) {
+// runProcess starts a single process and blocks until it has completed or failed.
+func (e *Executor) runProcess(ctx context.Context, p process, output *processOutput, logger *zap.Logger) {
 	name := p.Name()
-	e.log.Info("Starting process", zap.String("process_name", name))
+	logger.Info("Starting process", zap.String("process_name", name))
 
-	logger := e.log.With(zap.String("process", name))
+	logger = logger.With(zap.String("process", name))
 	err := p.Run(ctx, output, logger)
 
 	var result status
@@ -122,11 +133,11 @@ func (e *Executor) run(ctx context.Context, p Process, output *processOutput) {
 	e.messages <- message{p: p, status: result, err: err}
 }
 
-func (e *Executor) waitForAll(interruptAll func()) error {
+func (e *Executor) waitForAll(interruptAll func(), logger *zap.Logger) error {
 	var firstErr error
 	var firstErrProcess string
 	for len(e.running) > 0 {
-		e.log.Debug("Waiting for processes to complete", zap.Int("amount", len(e.running)))
+		logger.Debug("Waiting for processes to complete", zap.Int("amount", len(e.running)))
 
 		message := <-e.messages
 		name := message.p.Name() // TODO what if names collide?
@@ -134,11 +145,11 @@ func (e *Executor) waitForAll(interruptAll func()) error {
 
 		switch message.status {
 		case statusSuccess:
-			e.log.Info("Process finished successfully", zap.String("process_name", message.p.Name()))
+			logger.Info("Process finished successfully", zap.String("process_name", message.p.Name()))
 		case statusInterrupted:
-			e.log.Info("Process was interrupted", zap.String("process_name", message.p.Name()))
+			logger.Info("Process was interrupted", zap.String("process_name", message.p.Name()))
 		case statusError:
-			e.log.Error("Process error", zap.String("process_name", message.p.Name()), zap.Error(message.err))
+			logger.Error("Process error", zap.String("process_name", message.p.Name()), zap.Error(message.err))
 			if firstErr == nil {
 				firstErr = message.err
 				firstErrProcess = message.p.Name()
@@ -148,7 +159,7 @@ func (e *Executor) waitForAll(interruptAll func()) error {
 	}
 
 	if firstErr != nil {
-		e.log.Error("Stopped due to error in process",
+		logger.Error("Stopped due to error in process",
 			zap.String("process_name", firstErrProcess),
 			zap.Error(firstErr),
 		)

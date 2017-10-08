@@ -22,10 +22,11 @@ func ParseProcFile(reader io.Reader, env Environment) ([]Process, error) {
 			return processes, fmt.Errorf("invalid Procfile format at line %d: %s", i, line)
 		}
 
-		name := strings.TrimSpace(lineParts[0])
-		script := strings.TrimSpace(lineParts[1])
-
-		processes = append(processes, NewProcess(name, script, env))
+		processes = append(processes, Process{
+			Name:   strings.TrimSpace(lineParts[0]),
+			Script: strings.TrimSpace(lineParts[1]),
+			Env:    env,
+		})
 	}
 
 	// TODO check if a task has been defined multiple times

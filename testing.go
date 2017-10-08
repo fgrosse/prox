@@ -14,8 +14,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type TestExecutor struct {
+type TestExecutor struct { // TODO: no need to export these types
 	*Executor
+	log   *zap.Logger
 	Error error
 
 	mu           sync.RWMutex
@@ -36,8 +37,15 @@ func TestNewExecutor(w io.Writer) *TestExecutor {
 	return e
 }
 
-func (e *TestExecutor) Run(processes ...Process) {
+func (e *TestExecutor) Run(processes ...process) {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	output := &output{writer: e.output}
+	for _, p := range processes {
+		if n := len(p.Name()); n > output.prefixLength {
+			output.prefixLength = n
+		}
+	}
 
 	e.mu.Lock()
 	e.executorDone = false
@@ -45,7 +53,7 @@ func (e *TestExecutor) Run(processes ...Process) {
 	e.mu.Unlock()
 
 	e.log.Info("Executor starting")
-	e.Error = e.Executor.Run(ctx, processes)
+	e.Error = e.Executor.run(ctx, output, processes, e.log)
 	e.log.Info("Executor finished")
 
 	e.mu.Lock()

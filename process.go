@@ -15,10 +15,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// A Process is an abstraction of a child process which is started by the
+// A process is an abstraction of a child process which is started by the
 // Executor.
-type Process interface {
-	Name() string
+type process interface {
+	Name() string // TODO: lower case all functions of internal interface
 	Info() ProcessInfo
 	Run(context.Context, io.Writer, *zap.Logger) error
 }
@@ -46,7 +46,7 @@ type systemProcess struct {
 
 // NewProcess creates a new Process that executes the given script as a new
 // system process (using os/exec).
-func NewProcess(name, script string, env Environment) Process {
+func NewProcess(name, script string, env Environment) process {
 	return &systemProcess{
 		script:           script,
 		name:             name,
