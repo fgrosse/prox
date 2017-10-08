@@ -37,7 +37,7 @@ func TestNewExecutor(w io.Writer) *TestExecutor {
 	return e
 }
 
-func (e *TestExecutor) Run(processes ...process) {
+func (e *TestExecutor) Run(processes ...*TestProcess) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	output := &output{writer: e.output}
@@ -47,13 +47,20 @@ func (e *TestExecutor) Run(processes ...process) {
 		}
 	}
 
+	pp := make([]process, len(processes))
+	for i, p := range processes {
+		e.outputs[p.name] = output.next(p.name)
+		p.output = e.outputs[p.name]
+		pp[i] = p
+	}
+
 	e.mu.Lock()
 	e.executorDone = false
 	e.cancel = cancel
 	e.mu.Unlock()
 
 	e.log.Info("Executor starting")
-	e.Error = e.Executor.run(ctx, output, processes, e.log)
+	e.Error = e.Executor.run(ctx, pp, e.log)
 	e.log.Info("Executor finished")
 
 	e.mu.Lock()
@@ -78,11 +85,12 @@ func (e *TestExecutor) Stop() {
 
 type TestProcess struct {
 	name   string // TODO: make settable from the outside
+	output io.Writer
+	logger *zap.Logger
 	PID    int
 	Uptime time.Duration
 
 	mu          sync.Mutex
-	output      io.Writer
 	started     bool
 	interrupted bool
 
@@ -107,13 +115,16 @@ func (p *TestProcess) String() string {
 	return p.Name()
 }
 
-func (p *TestProcess) Run(ctx context.Context, w io.Writer, logger *zap.Logger) error {
+func (p *TestProcess) Run(ctx context.Context) error {
 	p.mu.Lock()
+	if p.logger == nil {
+		p.logger = zap.NewNop()
+	}
+
 	if p.started {
 		return errors.New("started multiple times")
 	}
 
-	p.output = w
 	p.started = true
 	p.interrupted = false
 	p.finish = make(chan chan bool)
@@ -122,9 +133,9 @@ func (p *TestProcess) Run(ctx context.Context, w io.Writer, logger *zap.Logger) 
 
 	select {
 	case <-ctx.Done():
-		logger.Debug("Context is done (interrupted)")
+		p.logger.Debug("Context is done (interrupted)")
 		if p.interruptFinisher != nil {
-			logger.Debug("Executing interrupt finisher")
+			p.logger.Debug("Executing interrupt finisher")
 			<-p.interruptFinisher
 		}
 		p.mu.Lock()
@@ -132,11 +143,11 @@ func (p *TestProcess) Run(ctx context.Context, w io.Writer, logger *zap.Logger) 
 		p.mu.Unlock()
 		return ctx.Err()
 	case c := <-p.finish:
-		logger.Debug("Received finish signal")
+		p.logger.Debug("Received finish signal")
 		c <- true
 		return nil
 	case c := <-p.fail:
-		logger.Debug("Received fail signal")
+		p.logger.Debug("Received fail signal")
 		c <- true
 		return fmt.Errorf("TestProcess simulated a failure")
 	}

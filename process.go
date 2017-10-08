@@ -18,9 +18,9 @@ import (
 // A process is an abstraction of a child process which is started by the
 // Executor.
 type process interface {
-	Name() string // TODO: lower case all functions of internal interface
+	Name() string
 	Info() ProcessInfo
-	Run(context.Context, io.Writer, *zap.Logger) error
+	Run(context.Context) error
 }
 
 // ProcessInfo returns information about a running process.
@@ -36,6 +36,8 @@ type systemProcess struct {
 	name   string
 	script string
 	env    Environment
+	output io.Writer
+	logger *zap.Logger
 
 	startedAt        time.Time
 	interruptTimeout time.Duration
@@ -44,14 +46,20 @@ type systemProcess struct {
 	cmd *exec.Cmd
 }
 
-// NewProcess creates a new Process that executes the given script as a new
-// system process (using os/exec).
-func NewProcess(name, script string, env Environment) process {
+// newSystemProcess creates a new process that executes the given script as a
+// new system process (using os/exec).
+func newSystemProcess(name, script string, env Environment, output io.Writer, logger *zap.Logger) *systemProcess {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &systemProcess{
 		script:           script,
 		name:             name,
 		interruptTimeout: 5 * time.Second,
 		env:              env,
+		output:           output,
+		logger:           logger,
 	}
 }
 
@@ -78,21 +86,17 @@ func (p *systemProcess) Info() ProcessInfo {
 // Run starts the shell process and blocks until it finishes or the context is
 // done. The given io.Writer receives all output (both stdout and stderr) of the
 // process.
-func (p *systemProcess) Run(ctx context.Context, output io.Writer, logger *zap.Logger) error {
+func (p *systemProcess) Run(ctx context.Context) error {
 	p.mu.Lock()
 
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-
 	commandLine := p.buildCommandLine()
-	logger.Debug("Starting new shell process", zap.String("script", commandLine))
+	p.logger.Debug("Starting new shell process", zap.String("script", commandLine))
 
 	cmdParts := strings.Fields(commandLine)
 	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 
-	p.cmd.Stdout = output
-	p.cmd.Stderr = output
+	p.cmd.Stdout = p.output
+	p.cmd.Stderr = p.output
 	p.cmd.Env = p.env.List()
 
 	p.startedAt = time.Now()
@@ -103,10 +107,10 @@ func (p *systemProcess) Run(ctx context.Context, output io.Writer, logger *zap.L
 		return fmt.Errorf("could not start shell task: %s", err)
 	}
 
-	return p.wait(ctx, logger)
+	return p.wait(ctx)
 }
 
-func (p *systemProcess) wait(ctx context.Context, logger *zap.Logger) error {
+func (p *systemProcess) wait(ctx context.Context) error {
 	done := make(chan error)
 	go func() {
 		done <- p.cmd.Wait()
@@ -131,7 +135,7 @@ func (p *systemProcess) wait(ctx context.Context, logger *zap.Logger) error {
 			return ctx.Err()
 		}
 
-		logger.Info("Sending interrupt signal", zap.Duration("timeout", p.interruptTimeout))
+		p.logger.Info("Sending interrupt signal", zap.Duration("timeout", p.interruptTimeout))
 
 		/*
 			TODO: to kill all child processes as well try this:
@@ -144,18 +148,18 @@ func (p *systemProcess) wait(ctx context.Context, logger *zap.Logger) error {
 		// TODO: this results in our child processes to receive SIGINT twice, due to the process group issue (e.g. visible in redis)
 		err := p.cmd.Process.Signal(syscall.SIGINT)
 		if err != nil && err.Error() != "os: process already finished" {
-			logger.Error("Failed to send SIGINT to process", zap.Error(err))
+			p.logger.Error("Failed to send SIGINT to process", zap.Error(err))
 			p.cmd.Process.Kill()
 			return ctx.Err()
 		}
 
 		select {
 		case <-done:
-			logger.Debug("Process interrupted successfully", zap.Error(err))
+			p.logger.Debug("Process interrupted successfully", zap.Error(err))
 		case <-time.After(p.interruptTimeout):
 			err := p.cmd.Process.Kill()
 			if err != nil {
-				logger.Error("Failed to kill process", zap.Error(err))
+				p.logger.Error("Failed to kill process", zap.Error(err))
 			}
 		}
 

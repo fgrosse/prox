@@ -22,9 +22,10 @@ type Executor struct {
 }
 
 type Process struct {
-	Name   string
-	Script string
-	Env    Environment
+	Name       string
+	Script     string
+	Env        Environment
+	JSONOutput bool
 }
 
 // messages are passed to signal that a specific process has finished along with
@@ -53,6 +54,9 @@ func NewExecutor(debug bool) *Executor {
 		output:       os.Stdout,
 		debug:        debug,
 		proxLogColor: colorWhite,
+		running:      map[string]process{},
+		outputs:      map[string]*processOutput{},
+		messages:     make(chan message),
 	}
 }
 
@@ -76,16 +80,13 @@ func (e *Executor) Run(ctx context.Context, processes []Process) error {
 
 	pp := make([]process, len(processes))
 	for i, p := range processes {
-		pp[i] = NewProcess(p.Name, p.Script, p.Env)
+		po := output.next(p.Name)
+		e.outputs[p.Name] = po
+		log := logger.With(zap.String("process", p.Name))
+		pp[i] = newSystemProcess(p.Name, p.Script, p.Env, po, log)
 	}
 
-	return e.run(ctx, output, pp, logger)
-}
-
-func (e *Executor) run(ctx context.Context, output *output, processes []process, logger *zap.Logger) error {
-	ctx, cancel := context.WithCancel(ctx)
-	e.startAll(ctx, processes, output, logger)
-	return e.waitForAll(cancel, logger)
+	return e.run(ctx, pp, logger)
 }
 
 func (e *Executor) monitorContext(ctx context.Context, log *zap.Logger) {
@@ -95,32 +96,32 @@ func (e *Executor) monitorContext(ctx context.Context, log *zap.Logger) {
 	}
 }
 
+func (e *Executor) run(ctx context.Context, processes []process, logger *zap.Logger) error {
+	ctx, cancel := context.WithCancel(ctx)
+	e.startAll(ctx, processes, logger)
+	return e.waitForAll(cancel, logger)
+}
+
 // StartAll starts all processes in a separate goroutine and then returns
 // immediately.
-func (e *Executor) startAll(ctx context.Context, pp []process, output *output, logger *zap.Logger) {
+func (e *Executor) startAll(ctx context.Context, pp []process, logger *zap.Logger) {
 	logger.Info("Starting processes", zap.Int("amount", len(pp)))
-
-	e.running = map[string]process{}
-	e.outputs = map[string]*processOutput{}
-	e.messages = make(chan message)
-
 	for _, p := range pp {
 		name := p.Name()
 		e.running[name] = p
-		e.outputs[name] = output.next(name)
-		go e.runProcess(ctx, p, e.outputs[name], logger)
+
+		go func(p process) {
+			logger.Info("Starting process", zap.String("process_name", p.Name()))
+			e.runProcess(ctx, p)
+		}(p)
 	}
 }
 
 // runProcess starts a single process and blocks until it has completed or failed.
-func (e *Executor) runProcess(ctx context.Context, p process, output *processOutput, logger *zap.Logger) {
-	name := p.Name()
-	logger.Info("Starting process", zap.String("process_name", name))
-
-	logger = logger.With(zap.String("process", name))
-	err := p.Run(ctx, output, logger)
-
+func (e *Executor) runProcess(ctx context.Context, p process) {
 	var result status
+	err := p.Run(ctx)
+
 	switch {
 	case err == context.Canceled:
 		result = statusInterrupted

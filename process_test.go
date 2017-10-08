@@ -23,7 +23,7 @@ import (
 var _ = Describe("process", func() {
 	Describe("Name", func() {
 		It("should return the process.name", func() {
-			p := NewProcess("foo", "echo foo", Environment{})
+			p := newSystemProcess("foo", "echo foo", Environment{}, nil, nil)
 			Expect(p.Name()).To(Equal("foo"))
 		})
 	})
@@ -49,6 +49,7 @@ var _ = Describe("process", func() {
 				name:   "test",
 				script: testProcessScript("http", port),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
+				logger: log.Named("http_server"),
 			}
 
 			httpRequest := func() int {
@@ -71,7 +72,7 @@ var _ = Describe("process", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx, nil, log.Named("http_server"))
+				p.Run(ctx)
 			}()
 
 			Eventually(httpRequest).Should(Equal(http.StatusOK), "should eventually answer with status code 200")
@@ -82,6 +83,8 @@ var _ = Describe("process", func() {
 			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "hello", "world"),
+				output: w,
+				logger: log.Named("process"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 			}
 
@@ -90,7 +93,7 @@ var _ = Describe("process", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx, w, log.Named("process"))
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`hello`))
@@ -102,6 +105,8 @@ var _ = Describe("process", func() {
 			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "-stderr", "hello", "world"),
+				output: w,
+				logger: log.Named("process"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 			}
 
@@ -110,7 +115,7 @@ var _ = Describe("process", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx, w, log.Named("process"))
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`hello`))
@@ -123,6 +128,8 @@ var _ = Describe("process", func() {
 			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "-env"),
+				output: w,
+				logger: log.Named("process"),
 				env: NewEnv([]string{
 					"GO_WANT_HELPER_PROCESS=1",
 					"FOO=bar",
@@ -135,7 +142,7 @@ var _ = Describe("process", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx, w, log.Named("process"))
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`FOO=bar`))
@@ -147,6 +154,8 @@ var _ = Describe("process", func() {
 			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "$FOO"),
+				output: w,
+				logger: log.Named("process"),
 				env: NewEnv([]string{
 					"GO_WANT_HELPER_PROCESS=1",
 					"FOO=it_worked!",
@@ -158,7 +167,7 @@ var _ = Describe("process", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx, w, log.Named("process"))
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`it_worked!`))
@@ -169,6 +178,8 @@ var _ = Describe("process", func() {
 			p := &systemProcess{
 				name:   "test",
 				script: "FOO=nice BAR=cool " + testProcessScript("echo", "-env"),
+				output: w,
+				logger: log.Named("process"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 			}
 
@@ -177,7 +188,7 @@ var _ = Describe("process", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx, w, log.Named("process"))
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`BAR=cool`))
@@ -189,6 +200,8 @@ var _ = Describe("process", func() {
 			p := &systemProcess{
 				name:   "test",
 				script: `FOO="Hello World" ` + testProcessScript("echo", "-env"),
+				output: w,
+				logger: log.Named("process"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 			}
 
@@ -197,7 +210,7 @@ var _ = Describe("process", func() {
 
 			go func() {
 				defer GinkgoRecover()
-				p.Run(ctx, w, log.Named("process"))
+				p.Run(ctx)
 			}()
 
 			Eventually(w).Should(Say(`FOO=Hello World`))
@@ -208,6 +221,7 @@ var _ = Describe("process", func() {
 				p := &systemProcess{
 					name:   "test",
 					script: testProcessScript("echo", "-block"),
+					logger: log.Named("process"),
 					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
 				}
 
@@ -216,7 +230,7 @@ var _ = Describe("process", func() {
 				go func() {
 					defer GinkgoRecover()
 					sync <- true
-					p.Run(ctx, nil, log.Named("process"))
+					p.Run(ctx)
 					sync <- true
 				}()
 
@@ -230,6 +244,7 @@ var _ = Describe("process", func() {
 					name:   "test",
 					script: testProcessScript("echo", "-block", "-ignoreSIGINT"),
 					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
+					logger: log.Named("process"),
 				}
 
 				ctx, cancel := context.WithCancel(context.Background())
@@ -237,7 +252,7 @@ var _ = Describe("process", func() {
 				go func() {
 					defer GinkgoRecover()
 					sync <- true
-					p.Run(ctx, nil, log.Named("process"))
+					p.Run(ctx)
 					sync <- true
 				}()
 
