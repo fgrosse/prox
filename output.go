@@ -159,6 +159,7 @@ func (o *bufferedWriter) Write(p []byte) (int, error) {
 		return n, err
 	}
 
+	// TODO: test writing multiple lines in a single call (needs to loop until io.EOF)
 	line, err := o.reader.ReadBytes('\n')
 	if err == io.EOF {
 		// we did not write enough data into the buffer yet so we return and
@@ -181,6 +182,16 @@ type processJSONOutput struct {
 	io.Writer    // the writer we are eventually emitting our formatted output to
 	messageField string
 	levelField   string
+
+	// taggingRules is an ordered list of functions that tag a structured log message
+	taggingRules []func(map[string]interface{}) (tag string)
+
+	// tagActions maps tags to the action that should be applied to the tagged message
+	tagActions map[string]tagAction
+}
+
+type tagAction struct {
+	color color
 }
 
 func newProcessJSONOutput(w io.Writer) io.Writer {
@@ -188,7 +199,26 @@ func newProcessJSONOutput(w io.Writer) io.Writer {
 		Writer:       w,
 		messageField: "message",
 		levelField:   "level",
+		tagActions:   map[string]tagAction{},
 	})
+}
+
+func (o *processJSONOutput) addTaggingRule(field, value, tag string) {
+	o.taggingRules = append(o.taggingRules, func(m map[string]interface{}) string {
+		if o.stringField(m, field) != value {
+			return ""
+		}
+
+		return tag
+	})
+}
+
+func (o *processJSONOutput) setTagAction(tag string, action tagAction) {
+	if o.tagActions == nil {
+		o.tagActions = map[string]tagAction{}
+	}
+
+	o.tagActions[tag] = action
 }
 
 func (o *processJSONOutput) Write(line []byte) (int, error) {
@@ -198,20 +228,26 @@ func (o *processJSONOutput) Write(line []byte) (int, error) {
 		return 0, errors.Wrap(err, "parsing JSON message")
 	}
 
-	msg := o.stringField(m, o.messageField)
-	delete(m, o.messageField)
-
 	var col color
-	if lvl := o.stringField(m, o.levelField); lvl != "" {
-		delete(m, o.levelField)
-		if msg != "" {
-			msg = "\t" + msg
+	tags := o.tagMessage(m)
+	for _, t := range tags {
+		action, ok := o.tagActions[t]
+		if !ok {
+			continue
 		}
-		msg = fmt.Sprintf("[%s]%s", strings.ToUpper(lvl), msg)
 
-		if lvl == "error" {
-			col = colorRed
+		if action.color != "" {
+			col = action.color
 		}
+	}
+
+	msg := o.stringField(m, o.messageField)
+	lvl := o.stringField(m, o.levelField)
+	delete(m, o.messageField)
+	delete(m, o.levelField)
+
+	if lvl != "" {
+		msg = fmt.Sprintf("[%s]\t%s", strings.ToUpper(lvl), msg)
 	}
 
 	if len(m) > 0 {
@@ -244,6 +280,16 @@ func (*processJSONOutput) stringField(m map[string]interface{}, key string) stri
 	}
 
 	return s
+}
+
+func (o *processJSONOutput) tagMessage(m map[string]interface{}) []string {
+	var tags []string
+	for _, f := range o.taggingRules {
+		if tag := f(m); tag != "" {
+			tags = append(tags, tag)
+		}
+	}
+	return tags
 }
 
 // prettyJSON marshals i into a JSON pretty printed single line format.

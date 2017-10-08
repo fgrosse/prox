@@ -94,7 +94,7 @@ var _ = Describe("processJSONOutput", func() {
 
 	It("should output the message as well readable text", func() {
 		w := new(bytes.Buffer)
-		o := newProcessJSONOutput(w)
+		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
 
 		writeLine(o, `{"level": "info", "message": "Hello World", "foo": "bar"}`)
 		writeLine(o, `{"level": "info", "message": "An error has occurred", "n":42, "object": {"test":true}}`)
@@ -107,7 +107,9 @@ var _ = Describe("processJSONOutput", func() {
 
 	It("should color messages based on the parsed log level", func() {
 		w := new(bytes.Buffer)
-		o := newProcessJSONOutput(w)
+		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+		o.addTaggingRule("level", "error", "error")
+		o.setTagAction("error", tagAction{color: colorRed})
 
 		writeLine(o, `{"level": "info", "message": "Hello World"}`)
 		writeLine(o, `{"level": "error", "message": "An error has occurred"}`)
@@ -121,20 +123,20 @@ var _ = Describe("processJSONOutput", func() {
 	Describe("weird input", func() {
 		It("should not crash if the message field is not present", func() {
 			w := new(bytes.Buffer)
-			o := newProcessJSONOutput(w)
+			o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
 
 			writeLine(o, `{"level": "info"}`)
 			writeLine(o, `{"level": "info", "n":42, "object": {"test":true}}`)
 
 			Expect(w.String()).To(Equal(strings.Join([]string{
-				"[INFO]",
-				"[INFO]\t" + `{ "n": 42, "object": { "test": true } }`,
+				"[INFO]\t",
+				"[INFO]\t\t" + `{ "n": 42, "object": { "test": true } }`,
 			}, "\n") + "\n"))
 		})
 
 		It("should not crash if the level field is not present", func() {
 			w := new(bytes.Buffer)
-			o := newProcessJSONOutput(w)
+			o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
 
 			writeLine(o, `{"message": "Hello World", "foo": "bar"}`)
 			writeLine(o, `{"message": "An error has occurred", "n":42, "object": {"test":true}}`)
