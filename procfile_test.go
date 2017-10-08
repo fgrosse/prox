@@ -53,7 +53,7 @@ var _ = Describe("ParseProcFile", func() {
 				processes, err := ParseProcFile(strings.NewReader(content), env)
 				Expect(err).NotTo(HaveOccurred())
 				for _, p := range processes {
-					p, ok := p.(*process)
+					p, ok := p.(*systemProcess)
 					Expect(ok).To(BeTrue())
 					Expect(p.env).To(Equal(env))
 				}

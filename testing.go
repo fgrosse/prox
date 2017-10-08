@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"sync"
-
 	"time"
 
 	"github.com/fgrosse/zaptest"

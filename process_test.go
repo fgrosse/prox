@@ -45,7 +45,7 @@ var _ = Describe("process", func() {
 			// connect to it to prove the process is running.
 			port := freePort(GinkgoT())
 			url := "http://localhost:" + port
-			p := &process{
+			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("http", port),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
@@ -79,7 +79,7 @@ var _ = Describe("process", func() {
 
 		It("should send its stdout to the configured writer", func() {
 			w := NewBuffer()
-			p := &process{
+			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "hello", "world"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
@@ -99,7 +99,7 @@ var _ = Describe("process", func() {
 
 		It("should send its stderr to the configured writer", func() {
 			w := NewBuffer()
-			p := &process{
+			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "-stderr", "hello", "world"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
@@ -120,7 +120,7 @@ var _ = Describe("process", func() {
 
 		It("should use the given environment", func() {
 			w := NewBuffer()
-			p := &process{
+			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "-env"),
 				env: NewEnv([]string{
@@ -144,7 +144,7 @@ var _ = Describe("process", func() {
 
 		It("should replace environment variables in the script", func() {
 			w := NewBuffer()
-			p := &process{
+			p := &systemProcess{
 				name:   "test",
 				script: testProcessScript("echo", "$FOO"),
 				env: NewEnv([]string{
@@ -166,7 +166,7 @@ var _ = Describe("process", func() {
 
 		It("should parse and use environment variables at the beginning of the script", func() {
 			w := NewBuffer()
-			p := &process{
+			p := &systemProcess{
 				name:   "test",
 				script: "FOO=nice BAR=cool " + testProcessScript("echo", "-env"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
@@ -186,7 +186,7 @@ var _ = Describe("process", func() {
 
 		PIt("should pass env variables with spaces at the beginning of the script", func() {
 			w := NewBuffer()
-			p := &process{
+			p := &systemProcess{
 				name:   "test",
 				script: `FOO="Hello World" ` + testProcessScript("echo", "-env"),
 				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
@@ -205,7 +205,7 @@ var _ = Describe("process", func() {
 
 		Describe("canceling process", func() {
 			It("should send SIGINT if the given context is canceled", func() {
-				p := &process{
+				p := &systemProcess{
 					name:   "test",
 					script: testProcessScript("echo", "-block"),
 					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
@@ -226,7 +226,7 @@ var _ = Describe("process", func() {
 			})
 
 			It("should kill process if it does not respond to SIGINT", func() {
-				p := &process{
+				p := &systemProcess{
 					name:   "test",
 					script: testProcessScript("echo", "-block", "-ignoreSIGINT"),
 					env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),

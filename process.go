@@ -23,15 +23,16 @@ type Process interface {
 	Run(context.Context, io.Writer, *zap.Logger) error
 }
 
+// ProcessInfo returns information about a running process.
 type ProcessInfo struct {
 	Name   string
 	PID    int
 	Uptime time.Duration
 }
 
-// process is a Process implementation that uses os/exec to start system
+// a systemProcess is a Process implementation that uses os/exec to start shell
 // processes.
-type process struct {
+type systemProcess struct {
 	name   string
 	script string
 	env    Environment
@@ -46,7 +47,7 @@ type process struct {
 // NewProcess creates a new Process that executes the given script as a new
 // system process (using os/exec).
 func NewProcess(name, script string, env Environment) Process {
-	return &process{
+	return &systemProcess{
 		script:           script,
 		name:             name,
 		interruptTimeout: 5 * time.Second,
@@ -56,11 +57,11 @@ func NewProcess(name, script string, env Environment) Process {
 
 // Name returns the human readable name of p that can be used to identify a
 // specific process.
-func (p *process) Name() string {
+func (p *systemProcess) Name() string {
 	return p.name
 }
 
-func (p *process) Info() ProcessInfo {
+func (p *systemProcess) Info() ProcessInfo {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -77,7 +78,7 @@ func (p *process) Info() ProcessInfo {
 // Run starts the shell process and blocks until it finishes or the context is
 // done. The given io.Writer receives all output (both stdout and stderr) of the
 // process.
-func (p *process) Run(ctx context.Context, output io.Writer, logger *zap.Logger) error {
+func (p *systemProcess) Run(ctx context.Context, output io.Writer, logger *zap.Logger) error {
 	p.mu.Lock()
 
 	if logger == nil {
@@ -105,7 +106,7 @@ func (p *process) Run(ctx context.Context, output io.Writer, logger *zap.Logger)
 	return p.wait(ctx, logger)
 }
 
-func (p *process) wait(ctx context.Context, logger *zap.Logger) error {
+func (p *systemProcess) wait(ctx context.Context, logger *zap.Logger) error {
 	done := make(chan error)
 	go func() {
 		done <- p.cmd.Wait()
@@ -162,7 +163,7 @@ func (p *process) wait(ctx context.Context, logger *zap.Logger) error {
 	}
 }
 
-func (p *process) buildCommandLine() string {
+func (p *systemProcess) buildCommandLine() string {
 	script := p.env.Expand(p.script)
 
 	r := regexp.MustCompile(`[a-zA-Z_]+=\S+`)
