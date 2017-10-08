@@ -170,14 +170,15 @@ func (o *bufferedWriter) Write(p []byte) (int, error) {
 		return n, errors.Wrap(err, "line buffer")
 	}
 
-	// TODO: check the read parts are eventually freed from the buffer
+	// TODO: check that the read parts are eventually freed from the buffer
 	_, err = o.Writer.Write(line)
 	return n, err
 }
 
-// a processJSONOutput is an io.Writer for processes which emit JSON messages.
-// This writer expects that it will always receive complete json encoded
-// messages so its best to wrap each processJSONOutput into a bufferedWriter.
+// a processJSONOutput is an io.Writer for processes which emit structured JSON
+// messages. This writer expects that it will always receive complete json
+// encoded messages on each write. Thus it is usually best to wrap each
+// processJSONOutput into a bufferedWriter.
 type processJSONOutput struct {
 	io.Writer    // the writer we are eventually emitting our formatted output to
 	messageField string
@@ -199,10 +200,12 @@ func newProcessJSONOutput(w io.Writer) io.Writer {
 		Writer:       w,
 		messageField: "message",
 		levelField:   "level",
-		tagActions:   map[string]tagAction{},
 	})
 }
 
+// addTaggingRule adds a new tagging rule to o. The `tag` is applied to each
+// message which contains a certain `field` where the corresponding value is
+// equal to the given `value`.
 func (o *processJSONOutput) addTaggingRule(field, value, tag string) {
 	o.taggingRules = append(o.taggingRules, func(m map[string]interface{}) string {
 		if o.stringField(m, field) != value {
@@ -213,6 +216,8 @@ func (o *processJSONOutput) addTaggingRule(field, value, tag string) {
 	})
 }
 
+// setTagAction instructs o to perform a certain action to all messages that
+// have been tagged with `tag` (e.g. change the log color).
 func (o *processJSONOutput) setTagAction(tag string, action tagAction) {
 	if o.tagActions == nil {
 		o.tagActions = map[string]tagAction{}
@@ -229,7 +234,7 @@ func (o *processJSONOutput) Write(line []byte) (int, error) {
 	}
 
 	var col color
-	tags := o.tagMessage(m)
+	tags := o.applyTags(m)
 	for _, t := range tags {
 		action, ok := o.tagActions[t]
 		if !ok {
@@ -282,7 +287,7 @@ func (*processJSONOutput) stringField(m map[string]interface{}, key string) stri
 	return s
 }
 
-func (o *processJSONOutput) tagMessage(m map[string]interface{}) []string {
+func (o *processJSONOutput) applyTags(m map[string]interface{}) []string {
 	var tags []string
 	for _, f := range o.taggingRules {
 		if tag := f(m); tag != "" {
