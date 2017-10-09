@@ -59,6 +59,23 @@ func run(cmd *cobra.Command, _ []string) {
 		os.Exit(StatusBadProcFile)
 	}
 
+	// TODO: remove manual test
+	for i, p := range pp {
+		if p.Name == "json-test" {
+			p.JSONOutput.Enabled = true
+			p.JSONOutput.MessageField = "M"
+			p.JSONOutput.LevelField = "L"
+			p.JSONOutput.TaggingRules = []prox.TaggingRule{
+				{Field: "L", Value: "ERROR", Tag: "error"},
+			}
+			p.JSONOutput.TagColors = map[string]string{
+				"error": "red",
+			}
+
+			pp[i] = p
+		}
+	}
+
 	// TODO: implement opt out for socket feature
 
 	e := prox.NewExecutorServer(socketPath, debug)

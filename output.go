@@ -90,8 +90,9 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 	}
 
 	var w io.Writer = po
-	if p.JSONOutput {
-		w = newProcessJSONOutput(po)
+	if p.JSONOutput.Enabled {
+		jo := newProcessJSONOutput(po, p)
+		w = newBufferedProcessOutput(jo)
 	}
 
 	return newMultiWriter(w)
@@ -233,7 +234,7 @@ type processJSONOutput struct {
 	messageField string
 	levelField   string
 
-	// taggingRules is an ordered list of functions that tag a structured log message
+	// taggingRules is a list of functions that tag a structured log message
 	taggingRules []func(map[string]interface{}) (tag string)
 
 	// tagActions maps tags to the action that should be applied to the tagged message
@@ -244,12 +245,22 @@ type tagAction struct {
 	color color
 }
 
-func newProcessJSONOutput(w io.Writer) io.Writer {
-	return newBufferedProcessOutput(&processJSONOutput{
+func newProcessJSONOutput(w io.Writer, p Process) *processJSONOutput {
+	o := &processJSONOutput{
 		Writer:       w,
-		messageField: "message",
-		levelField:   "level",
-	})
+		messageField: p.JSONOutput.MessageField,
+		levelField:   p.JSONOutput.LevelField,
+	}
+
+	for _, r := range p.JSONOutput.TaggingRules {
+		o.addTaggingRule(r.Field, r.Value, r.Tag)
+	}
+
+	for tag, c := range p.JSONOutput.TagColors {
+		o.setTagAction(tag, tagAction{color: parseColor(c)})
+	}
+
+	return o
 }
 
 // addTaggingRule adds a new tagging rule to o. The `tag` is applied to each

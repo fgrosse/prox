@@ -17,6 +17,27 @@ const (
 	colorWhite   color = "\x1b[37m" // reserved for the prox output
 )
 
+func parseColor(s string) color {
+	switch s {
+	case "red":
+		return colorRed
+	case "green":
+		return colorGreen
+	case "yellow":
+		return colorYellow
+	case "blue":
+		return colorBlue
+	case "magenta":
+		return colorMagenta
+	case "cyan":
+		return colorCyan
+	case "white":
+		return colorWhite
+	default:
+		return colorDefault
+	}
+}
+
 type colorPalette struct {
 	colors []color
 	i      int
