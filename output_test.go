@@ -14,12 +14,12 @@ var _ = Describe("output", func() {
 		It("should create a colorized process output with the correct prefix", func() {
 			buffer := new(bytes.Buffer)
 			o := &output{
-				writer:       buffer,
+				writer:       newSyncWriter(buffer),
 				colors:       &colorPalette{colors: []color{colorYellow}},
 				prefixLength: 8,
 			}
 
-			po := o.next("test")
+			po := o.next(Process{Name: "test"})
 			po.Write([]byte("This is a log message"))
 
 			prefix := colorDefault + colorBold + colorYellow + "test     │ " + colorDefault
@@ -30,12 +30,12 @@ var _ = Describe("output", func() {
 			It("should not colorize the output", func() {
 				buffer := new(bytes.Buffer)
 				o := &output{
-					writer:       buffer,
+					writer:       newSyncWriter(buffer),
 					colors:       &colorPalette{}, // color palette is empty
 					prefixLength: 8,
 				}
 
-				po := o.next("test")
+				po := o.next(Process{Name: "test"})
 				po.Write([]byte("This is a log message"))
 
 				Expect(buffer.String()).To(Equal("test     │ This is a log message\n"))

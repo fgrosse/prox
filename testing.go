@@ -40,7 +40,7 @@ func TestNewExecutor(w io.Writer) *TestExecutor {
 func (e *TestExecutor) Run(processes ...*TestProcess) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	output := &output{writer: e.output}
+	output := &output{writer: newSyncWriter(e.output)}
 	for _, p := range processes {
 		if n := len(p.Name()); n > output.prefixLength {
 			output.prefixLength = n
@@ -49,7 +49,7 @@ func (e *TestExecutor) Run(processes ...*TestProcess) {
 
 	pp := make([]process, len(processes))
 	for i, p := range processes {
-		e.outputs[p.name] = output.next(p.name)
+		e.outputs[p.name] = output.next(Process{Name: p.name})
 		p.output = e.outputs[p.name]
 		pp[i] = p
 	}

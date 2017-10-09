@@ -70,23 +70,35 @@ func (e *Executor) DisableColoredOutput() {
 // context is done (e.g. canceled). If a process crashes or the context is
 // canceled early, all running processes receive an interrupt signal.
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
-	output := newOutput(processes, e.noColors, e.output)
-	out := output.nextColored("prox", e.proxLogColor)
-	logger := NewLogger(out, e.debug)
+	logger := e.proxLogger(processes)
 
 	// make sure all log output is flushed before we leave this function
 	defer logger.Sync()
 	go e.monitorContext(ctx, logger)
 
+	output := e.newOutput(processes)
 	pp := make([]process, len(processes))
 	for i, p := range processes {
-		po := output.next(p.Name)
+		po := output.next(p)
 		e.outputs[p.Name] = po
 		log := logger.With(zap.String("process", p.Name))
 		pp[i] = newSystemProcess(p.Name, p.Script, p.Env, po, log)
 	}
 
 	return e.run(ctx, pp, logger)
+}
+
+// proxOutput creates a logger for the prox Executor itself. The given processes
+// are required to calculate the prefix of the log output line.
+func (e *Executor) proxLogger(pp []Process) *zap.Logger {
+	output := e.newOutput(pp)
+	out := output.nextColored(Process{Name: "prox"}, e.proxLogColor)
+	return NewLogger(out, e.debug)
+}
+
+// newOutput creates a new *output based on the settings of e.
+func (e *Executor) newOutput(processes []Process) *output {
+	return newOutput(processes, e.noColors, e.output)
 }
 
 func (e *Executor) monitorContext(ctx context.Context, log *zap.Logger) {

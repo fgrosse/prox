@@ -14,23 +14,33 @@ import (
 
 // output provides synchronized and colored *processOutput instances.
 type output struct {
-	mu           sync.Mutex
-	writer       io.Writer
+	writer       *syncWriter
 	colors       *colorPalette
 	prefixLength int
 }
 
-// processOutput is an io.Writer that is used to write all output of a single
-// process. New processOutput instances should be created via output.next(…).
-type processOutput struct {
-	mu      sync.Mutex
-	writers []io.Writer
-	prefix  string
+// syncWriter decorates an io.Writer with synchronization.
+type syncWriter struct {
+	sync.Mutex
+	io.Writer
+}
+
+func newSyncWriter(w io.Writer) *syncWriter {
+	return &syncWriter{Writer: w}
+}
+
+// Write implements io.Writer by delegating all writes to o.writer in a
+// synchronized manner.
+func (w *syncWriter) Write(b []byte) (int, error) {
+	w.Lock()
+	defer w.Unlock()
+
+	return w.Writer.Write(b)
 }
 
 func newOutput(pp []Process, noColors bool, w io.Writer) *output {
 	o := &output{
-		writer:       w,
+		writer:       newSyncWriter(w),
 		prefixLength: longestName(pp, 8),
 	}
 
@@ -57,32 +67,37 @@ func longestName(pp []Process, minLength int) int {
 	return n
 }
 
+// processOutput is an io.Writer that is used to write all output of a single
+// process. New processOutput instances should be created via output.next(…).
+type processOutput struct {
+	mu      sync.Mutex
+	writers []io.Writer
+	prefix  string
+}
+
 // next creates a new *processOutput using the next color of the color palette.
-func (o *output) next(name string) *processOutput {
+func (o *output) next(p Process) *processOutput {
 	c := o.colors.next()
-	return o.nextColored(name, c)
+	return o.nextColored(p, c)
 }
 
 // nextColored creates a new *processOutput using the provided color.
-func (o *output) nextColored(name string, c color) *processOutput {
-	name += strings.Repeat(" ", o.prefixLength-len(name))
-	po := newProcessOutput(o)
+func (o *output) nextColored(p Process, c color) *processOutput {
+	po := newProcessOutput(o.writer)
+	name := p.Name + strings.Repeat(" ", o.prefixLength-len(p.Name))
 	if c == colorNone {
 		po.prefix = name + " │ "
 	} else {
 		po.prefix = fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault)
 	}
 
+	/*
+		var w io.Writer = po
+		if p.JSONOutput { // FIXME: this will not work (TEST!) because the writer gets the message with the processOutput prefix so it will never receive valid JSON
+			w = newProcessJSONOutput(po)
+		}
+	*/
 	return po
-}
-
-// Write implements io.Writer by delegating all writes to o.writer in a
-// synchronized manner.
-func (o *output) Write(b []byte) (int, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	return o.writer.Write(b)
 }
 
 func newProcessOutput(w io.Writer) *processOutput {

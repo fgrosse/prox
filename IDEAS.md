@@ -13,3 +13,7 @@
   this could also use more advanced ad hoc rules if structured logging is enabled (e.g. host="foobar")
 - command or config to scale processes (start new instances)
 - command to simulate process crashes without bringing down the whole stack (can already be done via kill)
+
+## process output pipeline
+
+process | buffered | json | formatter | output 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net"
-	"os"
 	"sort"
 	"strings"
 
@@ -43,8 +42,7 @@ func NewExecutorServer(socketPath string, debug bool) *Server {
 // Server.Close() in order to close the unix socket connect.
 func (s *Server) Run(ctx context.Context, pp []Process) error {
 	if s.logger == nil {
-		out := newOutput(pp, s.noColors, os.Stdout).nextColored("prox", s.proxLogColor)
-		s.logger = NewLogger(out, s.debug)
+		s.logger = s.Executor.proxLogger(pp)
 	}
 
 	var err error
