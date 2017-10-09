@@ -12,14 +12,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-// output provides synchronized and colored *processOutput instances.
+// output provides synchronized and colored *formattedOutput instances.
+// Every Executor should always use a single *output instance to create the
+// io.Writers for the processes it spawns.
 type output struct {
 	writer       *syncWriter
 	colors       *colorPalette
 	prefixLength int
 }
 
-// syncWriter decorates an io.Writer with synchronization.
+// syncWriter decorates an io.Writer (i.e. a *output) with synchronization.
 type syncWriter struct {
 	sync.Mutex
 	io.Writer
@@ -67,23 +69,19 @@ func longestName(pp []Process, minLength int) int {
 	return n
 }
 
-// processOutput is an io.Writer that is used to write all output of a single
-// process. New processOutput instances should be created via output.next(…).
-type processOutput struct {
-	mu      sync.Mutex
-	writers []io.Writer
-	prefix  string
-}
-
-// next creates a new *processOutput using the next color of the color palette.
-func (o *output) next(p Process) *processOutput {
+// next creates a writer that can be used as output of a process using the next
+// color of the color palette. If the process is configured to emit JSON log
+// messages the writer will decode them in order to provide extended
+// functionality. Additionally the output will have a colored prefix in order to
+// display the outputs of multiple processes side by side in a single shell.
+func (o *output) next(p Process) *multiWriter {
 	c := o.colors.next()
 	return o.nextColored(p, c)
 }
 
-// nextColored creates a new *processOutput using the provided color.
-func (o *output) nextColored(p Process, c color) *processOutput {
-	po := newProcessOutput(o.writer)
+// nextColored is like output.next(…) but allows to set the color directly.
+func (o *output) nextColored(p Process, c color) *multiWriter {
+	po := &formattedOutput{Writer: o.writer}
 	name := p.Name + strings.Repeat(" ", o.prefixLength-len(p.Name))
 	if c == colorNone {
 		po.prefix = name + " │ "
@@ -91,55 +89,91 @@ func (o *output) nextColored(p Process, c color) *processOutput {
 		po.prefix = fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault)
 	}
 
-	/*
-		var w io.Writer = po
-		if p.JSONOutput { // FIXME: this will not work (TEST!) because the writer gets the message with the processOutput prefix so it will never receive valid JSON
-			w = newProcessJSONOutput(po)
-		}
-	*/
-	return po
+	var w io.Writer = po
+	if p.JSONOutput {
+		w = newProcessJSONOutput(po)
+	}
+
+	return newMultiWriter(w)
 }
 
-func newProcessOutput(w io.Writer) *processOutput {
-	return &processOutput{
-		writers: []io.Writer{w},
-	}
+type multiWriter struct {
+	mu      sync.Mutex
+	writers []io.Writer
+}
+
+func newMultiWriter(w io.Writer) *multiWriter {
+	return &multiWriter{writers: []io.Writer{w}}
 }
 
 // AddWriter adds a new writer that will receive all messages that are written
 // via o.
-func (o *processOutput) AddWriter(w io.Writer) {
-	o.mu.Lock()
-	o.writers = append(o.writers, w)
-	o.mu.Unlock()
+func (mw *multiWriter) AddWriter(w io.Writer) {
+	mw.mu.Lock()
+	mw.writers = append(mw.writers, w)
+	mw.mu.Unlock()
 }
 
 // RemoveWriter removes a previously added writer from the output.
-func (o *processOutput) RemoveWriter(w io.Writer) {
-	o.mu.Lock()
-	ww := make([]io.Writer, 0, len(o.writers))
-	for _, x := range o.writers {
+func (mw *multiWriter) RemoveWriter(w io.Writer) {
+	mw.mu.Lock()
+	ww := make([]io.Writer, 0, len(mw.writers))
+	for _, x := range mw.writers {
 		if x != w {
 			ww = append(ww, x)
 		}
 	}
-	o.writers = ww
-	o.mu.Unlock()
+	mw.writers = ww
+	mw.mu.Unlock()
+}
+
+// Write implements io.writer by writing p via all its writers. This function
+// returns without an error if at least one of the writers has written the
+// message without an error.
+func (mw *multiWriter) Write(p []byte) (int, error) {
+	var lastErr error
+	var ok bool
+
+	mw.mu.Lock()
+	for _, w := range mw.writers {
+		n, err := w.Write(p)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if n != len(p) {
+			lastErr = io.ErrShortWrite
+			continue
+		}
+
+		ok = true
+	}
+	mw.mu.Unlock()
+
+	if !ok {
+		return 0, lastErr
+	}
+
+	// at least one writer has successfully written the message
+	return len(p), nil
+}
+
+// formattedOutput is an io.Writer that is used to write all output of a single
+// process. New formattedOutput instances should be created via output.next(…).
+type formattedOutput struct {
+	io.Writer
+	prefix string
 }
 
 // Write implements io.writer by formatting b and writing it through os wrapped
 // io.Writer.
-func (o *processOutput) Write(b []byte) (int, error) {
-	o.mu.Lock()
-	w := io.MultiWriter(o.writers...)
-	o.mu.Unlock()
-
+func (o *formattedOutput) Write(b []byte) (int, error) {
 	msg := o.formatMsg(b)
-	_, err := fmt.Fprintln(w, msg)
+	_, err := fmt.Fprintln(o.Writer, msg)
 	return len(b), err
 }
 
-func (o *processOutput) formatMsg(p []byte) string {
+func (o *formattedOutput) formatMsg(p []byte) string {
 	msg := new(bytes.Buffer)
 	for _, line := range bytes.Split(bytes.TrimSpace(p), []byte("\n")) {
 		if msg.Len() > 0 {

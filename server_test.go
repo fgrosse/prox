@@ -39,10 +39,10 @@ var _ = Describe("Server", func() {
 			time.Sleep(time.Millisecond) // some more time for client to establish the tail
 			// TODO: the sleep above can be removed if we can tail from the beginning
 
-			p1.ShouldSay(t, "A message from p1")
-			p2.ShouldSay(t, "A message from p2")
-			p1.ShouldSay(t, "Another message from p1")
-			p2.ShouldSay(t, "And another message from p2")
+			p1.ShouldSay(t, "A message from p1\n")
+			p2.ShouldSay(t, "A message from p2\n")
+			p1.ShouldSay(t, "Another message from p1\n")
+			p2.ShouldSay(t, "And another message from p2\n")
 
 			Consistently(output).ShouldNot(Say("A message from p1"))
 			Consistently(output).ShouldNot(Say("Another message from p1"))

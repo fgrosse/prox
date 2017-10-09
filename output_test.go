@@ -44,19 +44,20 @@ var _ = Describe("output", func() {
 	})
 })
 
-var _ = Describe("processOutput", func() {
+var _ = Describe("multiWriter", func() {
 	Describe("adding and removing writers", func() {
 		It("should duplicate all messages to all registered writers", func() {
 			w1, w2, w3 := new(bytes.Buffer), new(bytes.Buffer), new(bytes.Buffer)
-			o := newProcessOutput(w1)
+			var o multiWriter
 
+			o.AddWriter(w1)
 			o.AddWriter(w2)
 			o.AddWriter(w3)
 
 			o.Write([]byte("Log message 1"))
-			Expect(w1.String()).To(Equal("Log message 1\n"))
-			Expect(w2.String()).To(Equal("Log message 1\n"))
-			Expect(w2.String()).To(Equal("Log message 1\n"))
+			Expect(w1.String()).To(Equal("Log message 1"))
+			Expect(w2.String()).To(Equal("Log message 1"))
+			Expect(w2.String()).To(Equal("Log message 1"))
 
 			w1.Reset()
 			w2.Reset()
@@ -64,16 +65,16 @@ var _ = Describe("processOutput", func() {
 
 			o.RemoveWriter(w2)
 			o.Write([]byte("Log message 2"))
-			Expect(w1.String()).To(Equal("Log message 2\n"))
+			Expect(w1.String()).To(Equal("Log message 2"))
 			Expect(w2.String()).To(BeEmpty())
-			Expect(w3.String()).To(Equal("Log message 2\n"))
+			Expect(w3.String()).To(Equal("Log message 2"))
 
 			w1.Reset()
 			w3.Reset()
 
 			o.RemoveWriter(w3)
 			o.Write([]byte("Log message 3"))
-			Expect(w1.String()).To(Equal("Log message 3\n"))
+			Expect(w1.String()).To(Equal("Log message 3"))
 			Expect(w2.String()).To(BeEmpty())
 			Expect(w3.String()).To(BeEmpty())
 		})
@@ -81,7 +82,8 @@ var _ = Describe("processOutput", func() {
 		PIt("should duplicate all messages to all writers even if some writers fail", func() {
 			// It may happen that we fail to write to a connected client for some reason.
 			// In this case we must ensure that we keep emitted log output in the main prox process.
-			// The issue is that the currently used multiwriter will fail upon the first error.
+
+			// TODO: implement test (code is already implemented)
 		})
 	})
 })

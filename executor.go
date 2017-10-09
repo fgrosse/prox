@@ -17,7 +17,7 @@ type Executor struct {
 	noColors     bool
 	proxLogColor color
 	running      map[string]process
-	outputs      map[string]*processOutput
+	outputs      map[string]*multiWriter
 	messages     chan message
 }
 
@@ -55,7 +55,7 @@ func NewExecutor(debug bool) *Executor {
 		debug:        debug,
 		proxLogColor: colorWhite,
 		running:      map[string]process{},
-		outputs:      map[string]*processOutput{},
+		outputs:      map[string]*multiWriter{},
 		messages:     make(chan message),
 	}
 }

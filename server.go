@@ -154,7 +154,7 @@ func (s *Server) handleTailCommand(ctx context.Context, conn net.Conn, msg socke
 		return errors.New("no arguments for tail provided")
 	}
 
-	var outputs []*processOutput
+	var outputs []*multiWriter
 	for _, name := range msg.Args {
 		o, ok := s.Executor.outputs[name]
 		if !ok {
