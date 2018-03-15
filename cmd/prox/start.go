@@ -77,15 +77,14 @@ func run(cmd *cobra.Command, _ []string) {
 	}
 
 	// TODO: implement opt out for socket feature
-
 	e := prox.NewExecutorServer(socketPath, debug)
-	defer e.Close()
-
 	if disableColors {
 		e.DisableColoredOutput()
 	}
 
 	err = e.Run(ctx, pp)
+	e.Close() // always close the executor/server regardless of any error
+
 	if err != nil {
 		// The error was logged by the executor already
 		// TODO: change signature of Run to return boolean
