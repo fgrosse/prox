@@ -63,10 +63,10 @@ func run(cmd *cobra.Command, _ []string) {
 	for i, p := range pp {
 		if p.Name == "json-test" {
 			p.JSONOutput.Enabled = true
-			p.JSONOutput.MessageField = "M"
-			p.JSONOutput.LevelField = "L"
+			p.JSONOutput.MessageField = "msg"
+			p.JSONOutput.LevelField = "level"
 			p.JSONOutput.TaggingRules = []prox.TaggingRule{
-				{Field: "L", Value: "ERROR", Tag: "error"},
+				{Field: "level", Value: "error", Tag: "error"},
 			}
 			p.JSONOutput.TagColors = map[string]string{
 				"error": "red",

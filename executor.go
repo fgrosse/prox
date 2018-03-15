@@ -21,19 +21,22 @@ type Executor struct {
 	messages     chan message
 }
 
+// Process holds all information about a process that is executed by prox.
 type Process struct {
 	Name   string
 	Script string
 	Env    Environment
 
-	JSONOutput struct {
-		Enabled      bool
-		MessageField string
-		LevelField   string
+	JSONOutput JSONOutput // optional
+}
 
-		TaggingRules      []TaggingRule
-		TagColors map[string]string
-	}
+type JSONOutput struct {
+	Enabled      bool
+	MessageField string
+	LevelField   string
+
+	TaggingRules []TaggingRule
+	TagColors    map[string]string
 }
 
 type TaggingRule struct {

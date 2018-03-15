@@ -290,6 +290,7 @@ func (o *processJSONOutput) Write(line []byte) (int, error) {
 	m := map[string]interface{}{}
 	err := json.Unmarshal(line, &m)
 	if err != nil {
+		// TODO: maybe simply log the message?
 		return 0, errors.Wrap(err, "parsing JSON message")
 	}
 
