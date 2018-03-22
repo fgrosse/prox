@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -263,11 +264,23 @@ func newProcessJSONOutput(w io.Writer, p Process) *processJSONOutput {
 	return o
 }
 
+var valueRegex = regexp.MustCompile("/(.+)/")
+
 // addTaggingRule adds a new tagging rule to o. The `tag` is applied to each
 // message which contains a certain `field` where the corresponding value is
-// equal to the given `value`.
+// equal to the given `value`. Optionally the value can be a regular expression
+// by surrounding it with slashes (e.g. /foo|bar/).
 func (o *processJSONOutput) addTaggingRule(field, value, tag string) {
+	var re *regexp.Regexp
+	if matches := valueRegex.FindStringSubmatch(value); matches != nil {
+		re, _ = regexp.Compile(matches[1])
+	}
+
 	o.taggingRules = append(o.taggingRules, func(m map[string]interface{}) string {
+		if re != nil && re.MatchString(o.stringField(m, field)) {
+			return tag
+		}
+
 		if o.stringField(m, field) != value {
 			return ""
 		}

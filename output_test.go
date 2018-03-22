@@ -113,12 +113,27 @@ var _ = Describe("processJSONOutput", func() {
 		o.addTaggingRule("level", "error", "error")
 		o.setTagAction("error", tagAction{color: colorRed})
 
-		writeLine(o, `{"level": "info", "message": "Hello World"}`)
+		writeLine(o, `{"level": "info",  "message": "Hello World"}`)
 		writeLine(o, `{"level": "error", "message": "An error has occurred"}`)
 
 		Expect(w.String()).To(Equal(strings.Join([]string{
 			"[INFO]\tHello World",
 			colored(colorRed, "[ERROR]\tAn error has occurred"),
+		}, "\n") + "\n"))
+	})
+
+	It("should color messages using regular expressions", func() {
+		w := new(bytes.Buffer)
+		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+		o.addTaggingRule("message", "/t..t/", "my-tag")
+		o.setTagAction("my-tag", tagAction{color: colorBlue})
+
+		writeLine(o, `{"level": "info",  "message": "The test is a lie"}`)
+		writeLine(o, `{"level": "error", "message": "An error has occurred"}`)
+
+		Expect(w.String()).To(Equal(strings.Join([]string{
+			colored(colorBlue, "[INFO]\tThe test is a lie"),
+			"[ERROR]\tAn error has occurred",
 		}, "\n") + "\n"))
 	})
 
