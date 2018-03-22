@@ -41,7 +41,7 @@ type JSONOutput struct {
 
 type TaggingRule struct {
 	Field string
-	Value string
+	Value string // either a concrete string or a regex like so: "/error|fatal/i"
 	Tag   string
 }
 

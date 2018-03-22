@@ -137,6 +137,21 @@ var _ = Describe("processJSONOutput", func() {
 		}, "\n") + "\n"))
 	})
 
+	It("should color messages using regular expressions supporting case insensitive matching", func() {
+		w := new(bytes.Buffer)
+		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+		o.addTaggingRule("message", "/t..t/i", "my-tag")
+		o.setTagAction("my-tag", tagAction{color: colorBlue})
+
+		writeLine(o, `{"level": "info",  "message": "This is a tEsT"}`)
+		writeLine(o, `{"level": "error", "message": "An error has occurred"}`)
+
+		Expect(w.String()).To(Equal(strings.Join([]string{
+			colored(colorBlue, "[INFO]\tThis is a tEsT"),
+			"[ERROR]\tAn error has occurred",
+		}, "\n") + "\n"))
+	})
+
 	Describe("weird input", func() {
 		It("should not crash if the message field is not present", func() {
 			w := new(bytes.Buffer)
