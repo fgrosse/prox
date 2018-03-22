@@ -9,7 +9,6 @@ import (
 
 	"bitbucket.org/corvan/prox"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -26,7 +25,7 @@ func init() {
 
 	startCmd.Flags().Bool("no-color", false, "disable colored output")
 	startCmd.Flags().StringP("env", "e", ".env", "path to the env file")
-	startCmd.Flags().StringP("procfile", "f", "Procfile", "path to the Procfile")
+	startCmd.Flags().StringP("procfile", "f", "", `path to the Proxfile or Procfile (Default "Proxfile" or "Procfile")`)
 	startCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
 }
 
@@ -37,8 +36,9 @@ var startCmd = &cobra.Command{
 }
 
 func run(cmd *cobra.Command, _ []string) {
+	viper.BindPFlags(cmd.Flags())
+
 	ctx := cliContext()
-	flags := cmd.Flags()
 
 	debug := viper.GetBool("verbose")
 	logger := prox.NewLogger(os.Stderr, debug)
@@ -47,33 +47,16 @@ func run(cmd *cobra.Command, _ []string) {
 	socketPath := GetStringFlag(cmd, "socket", logger)
 	disableColors := GetBoolFlag(cmd, "no-color", logger)
 
-	env, err := environment(flags)
+	env, err := environment()
 	if err != nil {
 		logger.Error("Failed to parse env file: " + err.Error() + "\n")
 		os.Exit(StatusBadEnvFile)
 	}
 
-	pp, err := processes(flags, env)
+	pp, err := processes(env)
 	if err != nil {
 		logger.Error("Failed to parse Procfile: " + err.Error() + "\n")
 		os.Exit(StatusBadProcFile)
-	}
-
-	// TODO: remove manual test
-	for i, p := range pp {
-		if p.Name == "json-test" {
-			p.JSONOutput.Enabled = true
-			p.JSONOutput.MessageField = "msg"
-			p.JSONOutput.LevelField = "level"
-			p.JSONOutput.TaggingRules = []prox.TaggingRule{
-				{Field: "level", Value: "error", Tag: "error"},
-			}
-			p.JSONOutput.TagColors = map[string]string{
-				"error": "red",
-			}
-
-			pp[i] = p
-		}
 	}
 
 	// TODO: implement opt out for socket feature
@@ -105,12 +88,8 @@ func cliContext() context.Context {
 	return ctx
 }
 
-func environment(flags *pflag.FlagSet) (prox.Environment, error) {
-	path, err := flags.GetString("env")
-	if err != nil {
-		return prox.Environment{}, errors.New("failed to get --env flag: " + err.Error())
-	}
-
+func environment() (prox.Environment, error) {
+	path := viper.GetString("env")
 	if path == "" {
 		return prox.Environment{}, errors.New("env file path cannot be empty")
 	}
@@ -130,17 +109,31 @@ func environment(flags *pflag.FlagSet) (prox.Environment, error) {
 	return env, err
 }
 
-func processes(flags *pflag.FlagSet, env prox.Environment) ([]prox.Process, error) {
-	path, err := flags.GetString("procfile")
-	if err != nil {
-		return nil, errors.New("failed to get --procfile flag: " + err.Error())
+func processes(env prox.Environment) ([]prox.Process, error) {
+	var (
+		f     *os.File
+		err   error
+		parse = prox.ParseProxFile
+	)
+
+	if path := viper.GetString("procfile"); path != "" {
+		// user has specified a path
+		f, err = os.Open(path)
+	} else {
+		// default to "Proxfile"
+		f, err = os.Open("Proxfile")
+		if os.IsNotExist(err) {
+			// no "Proxfile" but maybe we can open a "Procfile"
+			parse = prox.ParseProcFile
+			f, err = os.Open("Procfile")
+		}
 	}
 
-	f, err := os.Open(path)
 	if err != nil {
+		// well fuck it..
 		return nil, err
 	}
 
 	defer f.Close()
-	return prox.ParseProcFile(f, env)
+	return parse(f, env)
 }

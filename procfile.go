@@ -29,6 +29,5 @@ func ParseProcFile(reader io.Reader, env Environment) ([]Process, error) {
 		})
 	}
 
-	// TODO check if a task has been defined multiple times
 	return processes, s.Err()
 }

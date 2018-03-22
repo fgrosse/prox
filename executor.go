@@ -89,6 +89,9 @@ func (e *Executor) DisableColoredOutput() {
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
 	logger := e.proxLogger(processes)
 
+	// TODO: check for duplicate processes
+	// TODO: generally run full validation (e.g. all processes must have a script)
+
 	// make sure all log output is flushed before we leave this function
 	defer logger.Sync()
 	go e.monitorContext(ctx, logger)
