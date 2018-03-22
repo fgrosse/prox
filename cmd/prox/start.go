@@ -31,7 +31,7 @@ func init() {
 
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Run all processes",
+	Short: "Run all processes (default if no command is given)",
 	Run:   run,
 }
 
