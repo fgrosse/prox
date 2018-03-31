@@ -3,12 +3,12 @@
 Prox is a process runner for Procfile-based applications inspired by [foreman][foreman].
 With `prox` you can run several processes defined in a `Procfile` concurrently
 within a single terminal. All process outputs are prefixed with their corresponding
-process names. One of tje major use cases for this arises during development of an
+process names. One of the major use cases for this arises during development of an
 application that consist of multiple processes (e.g. microservices and storage backends).
 With a process runner you can easily start this "stack" of applications and inspect its
 output in a single shell while interacting with the application. 
 
-What makes prox special in comparison to other [other foreman clones](#similar-projects)
+What makes prox special in comparison to [other foreman clones](#similar-projects)
 is that when prox starts the application, it will also listen on a unix socket for
 requests. This makes it possible to interact with a running `prox` instance in
 another terminal, for instance to tail the logs of a subset of processes. This can
