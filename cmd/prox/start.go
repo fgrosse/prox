@@ -1,10 +1,7 @@
 package main
 
 import (
-	"context"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"bitbucket.org/corvan/prox"
 	"github.com/spf13/cobra"
@@ -65,17 +62,4 @@ func run(cmd *cobra.Command, _ []string) {
 		// TODO: change signature of Run to return boolean
 		os.Exit(StatusFailedProcess)
 	}
-}
-
-func cliContext() context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGALRM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-sigs
-		cancel()
-	}()
-
-	return ctx
 }

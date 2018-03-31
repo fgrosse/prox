@@ -29,6 +29,7 @@ var showCmd = &cobra.Command{
 		defer logger.Sync()
 
 		all := viper.GetBool("all")
+		verbose := viper.GetBool("verbose")
 		procfilePath := viper.GetString("procfile")
 		envPath := viper.GetString("env")
 
@@ -53,11 +54,11 @@ var showCmd = &cobra.Command{
 			os.Exit(StatusBadProcFile)
 		}
 
-		printRunConfiguration(all, name, pp)
+		printRunConfiguration(all, verbose, name, pp)
 	},
 }
 
-func printRunConfiguration(all bool, processName string, pp []prox.Process) {
+func printRunConfiguration(all, verbose bool, processName string, pp []prox.Process) {
 	if all {
 		w := tabwriter.NewWriter(os.Stdout, 8, 8, 2, ' ', 0)
 		fmt.Fprintln(w, "NAME\tSCRIPT")
@@ -80,7 +81,7 @@ func printRunConfiguration(all bool, processName string, pp []prox.Process) {
 		logger.Error(fmt.Sprintf("No such process %q. Use`prox show --all` to see a list of all available processes", processName))
 	}
 
-	if viper.GetBool("verbose") {
+	if verbose {
 		out, err := json.MarshalIndent(p, "", "    ")
 		if err != nil {
 			log.Fatal("Failed to encode message as JSON: ", err)
