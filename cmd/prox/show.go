@@ -30,7 +30,11 @@ var showCmd = &cobra.Command{
 
 		all := viper.GetBool("all")
 		debug := viper.GetBool("verbose")
+		procfilePath := viper.GetString("procfile")
+		envPath := viper.GetString("env")
+
 		logger := prox.NewLogger(os.Stderr, debug)
+		defer logger.Sync()
 
 		var name string
 		if len(args) != 1 && !all {
@@ -41,14 +45,13 @@ var showCmd = &cobra.Command{
 			name = args[0]
 		}
 
-		envPath := viper.GetString("env")
 		env, err := environment(envPath, logger)
 		if err != nil {
 			logger.Error("Failed to parse env file: " + err.Error())
 			os.Exit(StatusBadEnvFile)
 		}
 
-		pp, err := processes(env, logger)
+		pp, err := processes(env, procfilePath, logger)
 		if err != nil {
 			logger.Error("Failed to parse Procfile: " + err.Error())
 			os.Exit(StatusBadProcFile)

@@ -23,7 +23,9 @@ var tailCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cliContext()
 		debug := viper.GetBool("verbose")
+
 		logger := prox.NewLogger(os.Stderr, debug)
+		defer logger.Sync()
 
 		if len(args) == 0 {
 			logger.Fatal("tail requires at least one argument")

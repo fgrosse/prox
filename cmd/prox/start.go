@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,7 +9,6 @@ import (
 	"bitbucket.org/corvan/prox"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 func init() {
@@ -35,20 +33,21 @@ func run(cmd *cobra.Command, _ []string) {
 	ctx := cliContext()
 
 	debug := viper.GetBool("verbose")
+	socketPath := viper.GetString("socket")
+	disableColors := viper.GetBool("no-color")
+	envPath := viper.GetString("env")
+	procfilePath := viper.GetString("procfile")
+
 	logger := prox.NewLogger(os.Stderr, debug)
 	defer logger.Sync()
 
-	socketPath := GetStringFlag(cmd, "socket", logger)
-	disableColors := GetBoolFlag(cmd, "no-color", logger)
-
-	envPath := viper.GetString("env")
 	env, err := environment(envPath, logger)
 	if err != nil {
 		logger.Error("Failed to parse env file: " + err.Error())
 		os.Exit(StatusBadEnvFile)
 	}
 
-	pp, err := processes(env, logger)
+	pp, err := processes(env, procfilePath, logger)
 	if err != nil {
 		logger.Error("Failed to parse Procfile: " + err.Error())
 		os.Exit(StatusBadProcFile)
@@ -81,60 +80,4 @@ func cliContext() context.Context {
 	}()
 
 	return ctx
-}
-
-func environment(path string, logger *zap.Logger) (prox.Environment, error) {
-	if path == "" {
-		return prox.Environment{}, errors.New("env file path cannot be empty")
-	}
-
-	f, err := os.Open(path)
-	if os.IsNotExist(err) {
-		logger.Debug("Did not find env file. Using system env instead", zap.String("path", path))
-		return prox.SystemEnv(), nil
-	}
-
-	if err != nil {
-		return prox.Environment{}, errors.New("failed to open env file: " + err.Error())
-	}
-
-	logger.Debug("Reading env file", zap.String("path", path))
-
-	defer f.Close()
-	env := prox.SystemEnv()
-	err = env.ParseEnvFile(f)
-	return env, err
-}
-
-func processes(env prox.Environment, logger *zap.Logger) ([]prox.Process, error) {
-	var (
-		f     *os.File
-		err   error
-		parse = prox.ParseProxFile
-	)
-
-	if path := viper.GetString("procfile"); path != "" {
-		// user has specified a path
-		logger.Debug("Reading processes from file specified via --procfile", zap.String("path", path))
-		f, err = os.Open(path)
-	} else {
-		// default to "Proxfile"
-		f, err = os.Open("Proxfile")
-		if os.IsNotExist(err) {
-			// no "Proxfile" but maybe we can open a "Procfile"
-			logger.Debug("Reading processes from Procfile")
-			parse = prox.ParseProcFile
-			f, err = os.Open("Procfile")
-		} else {
-			logger.Debug("Reading processes from Proxfile")
-		}
-	}
-
-	if err != nil {
-		// well fuck it..
-		return nil, err
-	}
-
-	defer f.Close()
-	return parse(f, env)
 }
