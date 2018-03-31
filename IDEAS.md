@@ -4,6 +4,8 @@
 - allow assigning one ore many groups to processes and then start a group via `prox start <group>` or tail group logs via `prox tail <group>`
 - keep process logs in tmp dir and allow tailing logs from start
 - fix all TODOs!
+- add way to start everything except some specific processes
+  - e.g. `prox start !foo !bar`
 
 ### Output
 - limit characters per row in output based on terminal width (with opt-out))
