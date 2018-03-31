@@ -192,3 +192,9 @@ func (p *systemProcess) buildCommandLine() string {
 
 	return strings.TrimSpace(b.String())
 }
+
+// CommandLine returns the shell command line that would be executed when the given Process is started.
+func (p Process) CommandLine() string {
+	sp := newSystemProcess(p.Name, p.Script, p.Env, nil, nil)
+	return sp.buildCommandLine()
+}

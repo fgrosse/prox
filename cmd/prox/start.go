@@ -12,14 +12,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	StatusFailedProcess = 1
-	StatusBadEnvFile    = 2
-	StatusBadProcFile   = 3
-
-	DefaultSocketPath = ".prox.sock" // hidden file in current PWD
-)
-
 func init() {
 	cmd.AddCommand(startCmd)
 

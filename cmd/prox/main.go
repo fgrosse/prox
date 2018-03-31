@@ -12,6 +12,15 @@ import (
 // Version is the version of prox set at compile time.
 var Version = "0.0.0-unknown"
 
+const (
+	StatusFailedProcess = 1
+	StatusBadEnvFile    = 2
+	StatusBadProcFile   = 3
+	StatusMissingArgs   = 4
+
+	DefaultSocketPath = ".prox.sock" // hidden file in current PWD
+)
+
 var cmd = &cobra.Command{
 	Use:   "prox",
 	Short: "A process runner for Procfile-based applications",
