@@ -17,7 +17,7 @@ func init() {
 
 	flags := showCmd.Flags()
 	flags.StringP("env", "e", ".env", "path to the env file")
-	flags.StringP("procfile", "f", "", `path to the Proxfile or Procfile (Default "Proxfile" or "Procfile")`)
+	flags.StringP("procfile", "f", "", `path to the Proxfile or Procfile (default "Proxfile" or "Procfile")`)
 	flags.BoolP("all", "a", false, "show run configuration of all processes (ignoring any arguments)")
 }
 

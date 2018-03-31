@@ -15,7 +15,7 @@ func init() {
 	flags := startCmd.Flags()
 	flags.Bool("no-color", false, "disable colored output")
 	flags.StringP("env", "e", ".env", "path to the env file")
-	flags.StringP("procfile", "f", "", `path to the Proxfile or Procfile (Default "Proxfile" or "Procfile")`)
+	flags.StringP("procfile", "f", "", `path to the Proxfile or Procfile (default "Proxfile" or "Procfile")`)
 	flags.StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
 	flags.Bool("no-socket", false, "do not create a unix socket for prox clients")
 }
