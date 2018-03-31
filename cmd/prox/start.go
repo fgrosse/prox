@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"bitbucket.org/corvan/prox"
@@ -16,6 +17,7 @@ func init() {
 	flags.StringP("env", "e", ".env", "path to the env file")
 	flags.StringP("procfile", "f", "", `path to the Proxfile or Procfile (Default "Proxfile" or "Procfile")`)
 	flags.StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
+	flags.Bool("no-socket", false, "do not create a unix socket for prox clients")
 }
 
 var startCmd = &cobra.Command{
@@ -48,18 +50,31 @@ func run(cmd *cobra.Command, _ []string) {
 		os.Exit(StatusBadProcFile)
 	}
 
-	// TODO: implement opt out for socket feature
-	e := prox.NewExecutorServer(socketPath, debug)
+	var done func() error
+	var e interface {
+		Run(context.Context, []prox.Process) error
+		DisableColoredOutput()
+	}
+
+	if viper.GetBool("no-socket") {
+		logger.Debug("Skipping prox socket creation (--no-socket)")
+		e = prox.NewExecutor(debug)
+		done = func() error { return nil } // noop
+	} else {
+		es := prox.NewExecutorServer(socketPath, debug)
+		done = es.Close
+		e = es
+	}
+
 	if disableColors {
 		e.DisableColoredOutput()
 	}
 
 	err = e.Run(ctx, pp)
-	e.Close() // always close the executor/server regardless of any error
+	done() // always close the executor/server regardless of any error
 
 	if err != nil {
-		// The error was logged by the executor already
-		// TODO: change signature of Run to return boolean
+		// the error was logged by the executor already
 		os.Exit(StatusFailedProcess)
 	}
 }
