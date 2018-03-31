@@ -91,9 +91,12 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 	}
 
 	var w io.Writer = po
-	if p.JSONOutput.Enabled {
+	switch p.StructuredOutput.Format {
+	case "json":
 		jo := newProcessJSONOutput(po, p)
 		w = newBufferedProcessOutput(jo)
+	default:
+		// any other format is silently ignored
 	}
 
 	return newMultiWriter(w)
@@ -249,15 +252,15 @@ type tagAction struct {
 func newProcessJSONOutput(w io.Writer, p Process) *processJSONOutput {
 	o := &processJSONOutput{
 		Writer:       w,
-		messageField: p.JSONOutput.MessageField,
-		levelField:   p.JSONOutput.LevelField,
+		messageField: p.StructuredOutput.MessageField,
+		levelField:   p.StructuredOutput.LevelField,
 	}
 
-	for _, r := range p.JSONOutput.TaggingRules {
+	for _, r := range p.StructuredOutput.TaggingRules {
 		o.addTaggingRule(r.Field, r.Value, r.Tag)
 	}
 
-	for tag, c := range p.JSONOutput.TagColors {
+	for tag, c := range p.StructuredOutput.TagColors {
 		o.setTagAction(tag, tagAction{color: parseColor(c)})
 	}
 

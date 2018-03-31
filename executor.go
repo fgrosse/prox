@@ -27,11 +27,11 @@ type Process struct {
 	Script string
 	Env    Environment
 
-	JSONOutput JSONOutput // optional
+	StructuredOutput StructuredOutput // optional
 }
 
-type JSONOutput struct {
-	Enabled      bool
+type StructuredOutput struct {
+	Format       string // e.g. "json", the zero value disables structured output parsing
 	MessageField string
 	LevelField   string
 

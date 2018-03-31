@@ -83,8 +83,8 @@ processes:
 					"test":  "false",
 					"hello": "world",
 				},
-				JSONOutput: JSONOutput{
-					Enabled:      true,
+				StructuredOutput: StructuredOutput{
+					Format:       "json",
 					MessageField: "msg",
 					LevelField:   "level",
 					TaggingRules: []TaggingRule{

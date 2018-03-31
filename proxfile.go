@@ -86,17 +86,17 @@ func ParseProxFile(reader io.Reader, env Environment) ([]Process, error) {
 		}
 
 		if strings.ToLower(pp.Format) == "json" {
-			p.JSONOutput.Enabled = true
-			p.JSONOutput.MessageField = pp.Fields.Message
-			p.JSONOutput.LevelField = pp.Fields.Level
-			p.JSONOutput.TagColors = map[string]string{}
+			p.StructuredOutput.Format = pp.Format
+			p.StructuredOutput.MessageField = pp.Fields.Message
+			p.StructuredOutput.LevelField = pp.Fields.Level
+			p.StructuredOutput.TagColors = map[string]string{}
 			for tag, tagDef := range pp.Tags {
-				p.JSONOutput.TaggingRules = append(p.JSONOutput.TaggingRules, TaggingRule{
+				p.StructuredOutput.TaggingRules = append(p.StructuredOutput.TaggingRules, TaggingRule{
 					Tag:   tag,
 					Field: tagDef.Condition.Field,
 					Value: tagDef.Condition.Value,
 				})
-				p.JSONOutput.TagColors[tag] = tagDef.Color
+				p.StructuredOutput.TagColors[tag] = tagDef.Color
 			}
 		}
 
