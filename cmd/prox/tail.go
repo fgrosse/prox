@@ -18,8 +18,8 @@ func init() {
 }
 
 var tailCmd = &cobra.Command{
-	Use:   "tail <process>",
-	Short: "Follow the log output of running processes",
+	Use:   "tail <process> [process-2] … [process-N]",
+	Short: "Follow the log output of one or many running processes",
 	Run: func(cmd *cobra.Command, args []string) {
 		viper.BindPFlags(cmd.Flags())
 		defer logger.Sync()
@@ -28,7 +28,7 @@ var tailCmd = &cobra.Command{
 		socketPath := viper.GetString("socket")
 
 		if len(args) == 0 {
-			logger.Fatal("tail requires at least one argument")
+			logger.Fatal("prox tail requires at least one argument")
 		}
 
 		c, err := prox.NewClient(socketPath, debug)

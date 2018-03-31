@@ -31,46 +31,42 @@ func run(cmd *cobra.Command, _ []string) {
 	defer logger.Sync()
 
 	ctx := cliContext()
-
 	debug := viper.GetBool("verbose")
-	socketPath := viper.GetString("socket")
-	disableColors := viper.GetBool("no-color")
-	envPath := viper.GetString("env")
-	procfilePath := viper.GetString("procfile")
 
-	env, err := environment(envPath)
+	env, err := environment(viper.GetString("env"))
 	if err != nil {
 		logger.Error("Failed to parse env file: " + err.Error())
 		os.Exit(StatusBadEnvFile)
 	}
 
-	pp, err := processes(env, procfilePath)
+	pp, err := processes(env, viper.GetString("procfile"))
 	if err != nil {
 		logger.Error("Failed to parse Procfile: " + err.Error())
 		os.Exit(StatusBadProcFile)
 	}
 
 	var done func() error
-	var e interface {
+	var executor interface {
 		Run(context.Context, []prox.Process) error
 		DisableColoredOutput()
 	}
 
 	if viper.GetBool("no-socket") {
 		logger.Debug("Skipping prox socket creation (--no-socket)")
-		e = prox.NewExecutor(debug)
+		executor = prox.NewExecutor(debug)
 		done = func() error { return nil } // noop
 	} else {
+		socketPath := viper.GetString("socket")
 		es := prox.NewExecutorServer(socketPath, debug)
 		done = es.Close
-		e = es
+		executor = es
 	}
 
-	if disableColors {
-		e.DisableColoredOutput()
+	if viper.GetBool("no-color") {
+		executor.DisableColoredOutput()
 	}
 
-	err = e.Run(ctx, pp)
+	err = executor.Run(ctx, pp)
 	done() // always close the executor/server regardless of any error
 
 	if err != nil {
