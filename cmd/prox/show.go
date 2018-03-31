@@ -10,7 +10,6 @@ import (
 	"bitbucket.org/corvan/prox"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 func init() {
@@ -27,14 +26,11 @@ var showCmd = &cobra.Command{
 	Short: "Show run configuration of a single process",
 	Run: func(cmd *cobra.Command, args []string) {
 		viper.BindPFlags(cmd.Flags())
+		defer logger.Sync()
 
 		all := viper.GetBool("all")
-		debug := viper.GetBool("verbose")
 		procfilePath := viper.GetString("procfile")
 		envPath := viper.GetString("env")
-
-		logger := prox.NewLogger(os.Stderr, debug)
-		defer logger.Sync()
 
 		var name string
 		if len(args) != 1 && !all {
@@ -45,23 +41,23 @@ var showCmd = &cobra.Command{
 			name = args[0]
 		}
 
-		env, err := environment(envPath, logger)
+		env, err := environment(envPath)
 		if err != nil {
 			logger.Error("Failed to parse env file: " + err.Error())
 			os.Exit(StatusBadEnvFile)
 		}
 
-		pp, err := processes(env, procfilePath, logger)
+		pp, err := processes(env, procfilePath)
 		if err != nil {
 			logger.Error("Failed to parse Procfile: " + err.Error())
 			os.Exit(StatusBadProcFile)
 		}
 
-		printRunConfiguration(logger, all, name, pp)
+		printRunConfiguration(all, name, pp)
 	},
 }
 
-func printRunConfiguration(logger *zap.Logger, all bool, processName string, pp []prox.Process) {
+func printRunConfiguration(all bool, processName string, pp []prox.Process) {
 	if all {
 		w := tabwriter.NewWriter(os.Stdout, 8, 8, 2, ' ', 0)
 		fmt.Fprintln(w, "NAME\tSCRIPT")

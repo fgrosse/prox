@@ -20,6 +20,8 @@ const (
 	DefaultSocketPath = ".prox.sock" // hidden file in current PWD
 )
 
+var logger *zap.Logger
+
 var cmd = &cobra.Command{
 	Use:   "prox",
 	Short: "A process runner for Procfile-based applications",
@@ -34,13 +36,18 @@ func main() {
 	viper.SetEnvPrefix("PROX")
 	viper.BindPFlags(cmd.PersistentFlags())
 
+	cobra.OnInitialize(func() {
+		debug := viper.GetBool("verbose")
+		logger = prox.NewLogger(os.Stderr, debug)
+	})
+
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func environment(path string, logger *zap.Logger) (prox.Environment, error) {
+func environment(path string) (prox.Environment, error) {
 	if path == "" {
 		return prox.Environment{}, errors.New("env file path cannot be empty")
 	}
@@ -63,7 +70,7 @@ func environment(path string, logger *zap.Logger) (prox.Environment, error) {
 	return env, err
 }
 
-func processes(env prox.Environment, procFileFlag string, logger *zap.Logger) ([]prox.Process, error) {
+func processes(env prox.Environment, procFileFlag string) ([]prox.Process, error) {
 	var (
 		f     *os.File
 		err   error

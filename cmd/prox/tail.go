@@ -21,19 +21,14 @@ var tailCmd = &cobra.Command{
 	Use:   "tail <process>",
 	Short: "Follow the log output of running processes",
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := cliContext()
-		debug := viper.GetBool("verbose")
-
-		logger := prox.NewLogger(os.Stderr, debug)
+		viper.BindPFlags(cmd.Flags())
 		defer logger.Sync()
+
+		debug := viper.GetBool("verbose")
+		socketPath := viper.GetString("socket")
 
 		if len(args) == 0 {
 			logger.Fatal("tail requires at least one argument")
-		}
-
-		socketPath, err := cmd.Flags().GetString("socket")
-		if err != nil {
-			logger.Fatal("Failed to get --socket flag: " + err.Error())
 		}
 
 		c, err := prox.NewClient(socketPath, debug)
@@ -42,6 +37,7 @@ var tailCmd = &cobra.Command{
 		}
 		defer c.Close()
 
+		ctx := cliContext()
 		err = c.Tail(ctx, args, os.Stdout)
 		if err != nil && err != context.Canceled {
 			logger.Fatal(err.Error())

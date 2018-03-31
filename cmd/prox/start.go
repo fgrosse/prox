@@ -29,6 +29,7 @@ var startCmd = &cobra.Command{
 
 func run(cmd *cobra.Command, _ []string) {
 	viper.BindPFlags(cmd.Flags())
+	defer logger.Sync()
 
 	ctx := cliContext()
 
@@ -38,16 +39,13 @@ func run(cmd *cobra.Command, _ []string) {
 	envPath := viper.GetString("env")
 	procfilePath := viper.GetString("procfile")
 
-	logger := prox.NewLogger(os.Stderr, debug)
-	defer logger.Sync()
-
-	env, err := environment(envPath, logger)
+	env, err := environment(envPath)
 	if err != nil {
 		logger.Error("Failed to parse env file: " + err.Error())
 		os.Exit(StatusBadEnvFile)
 	}
 
-	pp, err := processes(env, procfilePath, logger)
+	pp, err := processes(env, procfilePath)
 	if err != nil {
 		logger.Error("Failed to parse Procfile: " + err.Error())
 		os.Exit(StatusBadProcFile)
