@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// Environment is a set of key value pairs that are used to set environment
+// variables for processes.
+type Environment map[string]string
+
 // ParseEnvFile reads environment variables that should be set on all processes
 // from the ".env" file.
 //
@@ -39,10 +43,6 @@ func (e Environment) ParseEnvFile(r io.Reader) error {
 
 	return s.Err()
 }
-
-// Environment is a set of key value pairs that are used to set environment
-// variables for processes.
-type Environment map[string]string
 
 // SystemEnv creates a new Environment from the operating systems environment
 // variables.

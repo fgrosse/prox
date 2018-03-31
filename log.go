@@ -9,8 +9,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// NewLogger creates a zap NewLogger that emits its log messages through the given
-// io.Writer. If debug is true the log level will also include debug
+// NewLogger creates a *zap.Logger that emits its log messages through the given
+// io.Writer. If debug is true the log level will also include debug and info
 // messages. Otherwise only warning and errors will be logged.
 func NewLogger(w io.Writer, debug bool) *zap.Logger {
 	lvl := zap.WarnLevel

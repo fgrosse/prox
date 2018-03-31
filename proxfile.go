@@ -8,6 +8,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	DefaultProxfileMessageField = "msg"
+	DefaultProxfileLevelField   = "level"
+	DefaultProxfileErrorColor   = "red"
+	DefaultProxfileFatalColor   = "red"
+)
+
 type Proxfile struct {
 	Processes map[string]ProxfileProcess
 }
@@ -83,14 +90,43 @@ func ParseProxFile(reader io.Reader, env Environment) ([]Process, error) {
 			Name:   strings.TrimSpace(name),
 			Script: strings.TrimSpace(pp.Script),
 			Env:    env,
+			StructuredOutput: StructuredOutput{
+				Format:       strings.ToLower(pp.Format),
+				MessageField: DefaultProxfileMessageField,
+				LevelField:   DefaultProxfileLevelField,
+				TagColors: map[string]string{
+					"error": DefaultProxfileErrorColor,
+					"fatal": DefaultProxfileFatalColor,
+				},
+				TaggingRules: []TaggingRule{
+					{
+						Tag:   "error",
+						Field: DefaultProxfileLevelField,
+						Value: "/(ERR(O|OR)?)|(WARN(ING)?)/i",
+					},
+					{
+						Tag:   "fatal",
+						Field: DefaultProxfileLevelField,
+						Value: "/FATAL?|PANIC/i",
+					},
+				},
+			},
 		}
 
-		if strings.ToLower(pp.Format) == "json" {
-			p.StructuredOutput.Format = pp.Format
+		// TODO: move this logic so processes defined by a "Procfile" also get these defaults
+
+		if pp.Fields.Message != "" {
 			p.StructuredOutput.MessageField = pp.Fields.Message
+		}
+
+		if pp.Fields.Level != "" {
 			p.StructuredOutput.LevelField = pp.Fields.Level
-			p.StructuredOutput.TagColors = map[string]string{}
+		}
+
+		if p.StructuredOutput.Format == "json" {
 			for tag, tagDef := range pp.Tags {
+				// Note that the default tags can be overwritten by defining a
+				// new tagging action wit the same tag name (i.e. "error" or "fatal").
 				p.StructuredOutput.TaggingRules = append(p.StructuredOutput.TaggingRules, TaggingRule{
 					Tag:   tag,
 					Field: tagDef.Condition.Field,

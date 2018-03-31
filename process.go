@@ -15,19 +15,28 @@ import (
 	"go.uber.org/zap"
 )
 
+// Process holds all information about a process that is executed by prox.
+type Process struct {
+	Name   string
+	Script string
+	Env    Environment
+
+	StructuredOutput StructuredOutput // optional
+}
+
+// ProcessInfo contains information about a running process.
+type ProcessInfo struct {
+	Name   string
+	PID    int
+	Uptime time.Duration
+}
+
 // A process is an abstraction of a child process which is started by the
 // Executor.
 type process interface {
 	Name() string
 	Info() ProcessInfo
 	Run(context.Context) error
-}
-
-// ProcessInfo returns information about a running process.
-type ProcessInfo struct {
-	Name   string
-	PID    int
-	Uptime time.Duration
 }
 
 // a systemProcess is a Process implementation that uses os/exec to start shell
@@ -84,8 +93,8 @@ func (p *systemProcess) Info() ProcessInfo {
 }
 
 // Run starts the shell process and blocks until it finishes or the context is
-// done. The given io.Writer receives all output (both stdout and stderr) of the
-// process.
+// done. The systemProcess.output receives both the stdout and stderr output
+// of the process.
 func (p *systemProcess) Run(ctx context.Context) error {
 	p.mu.Lock()
 
@@ -173,7 +182,7 @@ func (p *systemProcess) buildCommandLine() string {
 	r := regexp.MustCompile(`[a-zA-Z_]+=\S+`)
 
 	b := new(bytes.Buffer)
-	parts := strings.Fields(script) // TODO breaks if we have quotes spaces
+	parts := strings.Fields(script) // TODO breaks if we have quoted spaces
 
 	var done bool
 	for _, part := range parts {
@@ -193,7 +202,8 @@ func (p *systemProcess) buildCommandLine() string {
 	return strings.TrimSpace(b.String())
 }
 
-// CommandLine returns the shell command line that would be executed when the given Process is started.
+// CommandLine returns the shell command line that would be executed when the
+// given Process is started.
 func (p Process) CommandLine() string {
 	sp := newSystemProcess(p.Name, p.Script, p.Env, nil, nil)
 	return sp.buildCommandLine()

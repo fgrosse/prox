@@ -21,15 +21,6 @@ type Executor struct {
 	messages     chan message
 }
 
-// Process holds all information about a process that is executed by prox.
-type Process struct {
-	Name   string
-	Script string
-	Env    Environment
-
-	StructuredOutput StructuredOutput // optional
-}
-
 type StructuredOutput struct {
 	Format       string // e.g. "json", the zero value disables structured output parsing
 	MessageField string

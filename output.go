@@ -95,6 +95,9 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 	case "json":
 		jo := newProcessJSONOutput(po, p)
 		w = newBufferedProcessOutput(jo)
+	case "auto", "":
+		// TODO: implement output type that decides based on the first message
+		//       what format to choose.
 	default:
 		// any other format is silently ignored
 	}
@@ -191,7 +194,7 @@ func (o *formattedOutput) formatMsg(p []byte) string {
 }
 
 // a bufferedWriter is an io.Writer that buffers written messages until the next
-// new line character and then write every line via its embedded writer.
+// new line character and then writes every line via its embedded writer.
 type bufferedWriter struct {
 	io.Writer               // the writer we are eventually emitting our output to
 	buffer    *bytes.Buffer // contains all bytes written up to the next new line
