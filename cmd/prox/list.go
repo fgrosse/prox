@@ -12,8 +12,8 @@ import (
 func init() {
 	cmd.AddCommand(lsCmd)
 
-	lsCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of unix socket file to connect to")
-	// TODO: flag to omit prefix (useful if connecting to a single command and piping JSON output into jq)
+	flags := lsCmd.Flags()
+	flags.StringP("socket", "s", DefaultSocketPath, "path of unix socket file to connect to")
 }
 
 var lsCmd = &cobra.Command{

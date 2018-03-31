@@ -72,5 +72,6 @@ func (c logEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*buf
 		line.AppendString(s)
 	}
 
+	line.AppendString("\n")
 	return line, nil
 }

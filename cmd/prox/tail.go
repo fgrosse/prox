@@ -12,7 +12,8 @@ import (
 func init() {
 	cmd.AddCommand(tailCmd)
 
-	tailCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of unix socket file to connect to")
+	flags := tailCmd.Flags()
+	flags.StringP("socket", "s", DefaultSocketPath, "path of unix socket file to connect to")
 	// TODO: flag to omit prefix (useful if connecting to a single command and piping JSON output into jq)
 }
 

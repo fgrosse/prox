@@ -10,15 +10,17 @@ import (
 	"bitbucket.org/corvan/prox"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 func init() {
 	cmd.AddCommand(startCmd)
 
-	startCmd.Flags().Bool("no-color", false, "disable colored output")
-	startCmd.Flags().StringP("env", "e", ".env", "path to the env file")
-	startCmd.Flags().StringP("procfile", "f", "", `path to the Proxfile or Procfile (Default "Proxfile" or "Procfile")`)
-	startCmd.Flags().StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
+	flags := startCmd.Flags()
+	flags.Bool("no-color", false, "disable colored output")
+	flags.StringP("env", "e", ".env", "path to the env file")
+	flags.StringP("procfile", "f", "", `path to the Proxfile or Procfile (Default "Proxfile" or "Procfile")`)
+	flags.StringP("socket", "s", DefaultSocketPath, "path of the temporary unix socket file that clients can use to establish a connection")
 }
 
 var startCmd = &cobra.Command{
@@ -39,15 +41,16 @@ func run(cmd *cobra.Command, _ []string) {
 	socketPath := GetStringFlag(cmd, "socket", logger)
 	disableColors := GetBoolFlag(cmd, "no-color", logger)
 
-	env, err := environment()
+	envPath := viper.GetString("env")
+	env, err := environment(envPath, logger)
 	if err != nil {
-		logger.Error("Failed to parse env file: " + err.Error() + "\n")
+		logger.Error("Failed to parse env file: " + err.Error())
 		os.Exit(StatusBadEnvFile)
 	}
 
-	pp, err := processes(env)
+	pp, err := processes(env, logger)
 	if err != nil {
-		logger.Error("Failed to parse Procfile: " + err.Error() + "\n")
+		logger.Error("Failed to parse Procfile: " + err.Error())
 		os.Exit(StatusBadProcFile)
 	}
 
@@ -80,14 +83,14 @@ func cliContext() context.Context {
 	return ctx
 }
 
-func environment() (prox.Environment, error) {
-	path := viper.GetString("env")
+func environment(path string, logger *zap.Logger) (prox.Environment, error) {
 	if path == "" {
 		return prox.Environment{}, errors.New("env file path cannot be empty")
 	}
 
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
+		logger.Debug("Did not find env file. Using system env instead", zap.String("path", path))
 		return prox.SystemEnv(), nil
 	}
 
@@ -95,13 +98,15 @@ func environment() (prox.Environment, error) {
 		return prox.Environment{}, errors.New("failed to open env file: " + err.Error())
 	}
 
+	logger.Debug("Reading env file", zap.String("path", path))
+
 	defer f.Close()
 	env := prox.SystemEnv()
 	err = env.ParseEnvFile(f)
 	return env, err
 }
 
-func processes(env prox.Environment) ([]prox.Process, error) {
+func processes(env prox.Environment, logger *zap.Logger) ([]prox.Process, error) {
 	var (
 		f     *os.File
 		err   error
@@ -110,14 +115,18 @@ func processes(env prox.Environment) ([]prox.Process, error) {
 
 	if path := viper.GetString("procfile"); path != "" {
 		// user has specified a path
+		logger.Debug("Reading processes from file specified via --procfile", zap.String("path", path))
 		f, err = os.Open(path)
 	} else {
 		// default to "Proxfile"
 		f, err = os.Open("Proxfile")
 		if os.IsNotExist(err) {
 			// no "Proxfile" but maybe we can open a "Procfile"
+			logger.Debug("Reading processes from Procfile")
 			parse = prox.ParseProcFile
 			f, err = os.Open("Procfile")
+		} else {
+			logger.Debug("Reading processes from Proxfile")
 		}
 	}
 
