@@ -74,6 +74,7 @@ func (c *Client) Tail(ctx context.Context, processNames []string, output io.Writ
 
 	err := c.sendMessage(socketMessage{Command: "TAIL", Args: processNames})
 	if err != nil {
+		cancel()
 		return err
 	}
 
