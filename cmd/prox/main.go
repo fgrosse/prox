@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"bitbucket.org/corvan/prox"
@@ -97,6 +98,9 @@ func processes(env prox.Environment, procFileFlag string) ([]prox.Process, error
 		// user has specified a path
 		logger.Debug("Reading processes from file specified via --procfile", zap.String("path", procFileFlag))
 		f, err = os.Open(procFileFlag)
+		if filepath.Base(procFileFlag) == "Procfile" {
+			parse = prox.ParseProcFile
+		}
 	} else {
 		// default to "Proxfile"
 		f, err = os.Open("Proxfile")
