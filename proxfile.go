@@ -8,30 +8,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// DefaultStructuredOutput is the default configuration for processes that do
-// not specify structured log output specifically.
-var DefaultStructuredOutput = StructuredOutput{
-	Format:       "auto",
-	MessageField: "msg",
-	LevelField:   "level",
-	TagColors: map[string]string{
-		"error": "red",
-		"fatal": "red",
-	},
-	TaggingRules: []TaggingRule{
-		{
-			Tag:   "error",
-			Field: "level",
-			Value: "/(ERR(O|OR)?)|(WARN(ING)?)/i",
-		},
-		{
-			Tag:   "fatal",
-			Field: "level",
-			Value: "/FATAL?|PANIC/i",
-		},
-	},
-}
-
 type Proxfile struct {
 	Processes map[string]ProxfileProcess
 }
@@ -104,28 +80,19 @@ func ParseProxFile(reader io.Reader, env Environment) ([]Process, error) {
 		env.SetAll(pp.Env)
 
 		p := Process{
-			Name:             strings.TrimSpace(name),
-			Script:           strings.TrimSpace(pp.Script),
-			Env:              env,
-			StructuredOutput: DefaultStructuredOutput, // TODO: move this logic so processes defined by a "Procfile" also get these defaults
-		}
-
-		if pp.Format != "" {
-			p.StructuredOutput.Format = pp.Format
-		}
-
-		if pp.Fields.Message != "" {
-			p.StructuredOutput.MessageField = pp.Fields.Message
-		}
-
-		if pp.Fields.Level != "" {
-			p.StructuredOutput.LevelField = pp.Fields.Level
+			Name:   strings.TrimSpace(name),
+			Script: strings.TrimSpace(pp.Script),
+			Env:    env,
+			StructuredOutput: StructuredOutput{
+				Format:       pp.Format, // if empty the DefaultStructuredOutput will be applied automatically
+				MessageField: pp.Fields.Message,
+				LevelField:   pp.Fields.Level,
+				TagColors:    map[string]string{},
+			},
 		}
 
 		if p.StructuredOutput.Format == "json" {
 			for tag, tagDef := range pp.Tags {
-				// Note that the default tags can be overwritten by defining a
-				// new tagging action wit the same tag name (i.e. "error" or "fatal").
 				p.StructuredOutput.TaggingRules = append(p.StructuredOutput.TaggingRules, TaggingRule{
 					Tag:   tag,
 					Field: tagDef.Condition.Field,

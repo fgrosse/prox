@@ -25,19 +25,19 @@ processes:
 				Name:             "redis",
 				Script:           "bin/redis-server conf/redis.conf",
 				Env:              Environment{},
-				StructuredOutput: DefaultStructuredOutput,
+				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
 			}))
 			Expect(processes).To(ContainElement(Process{
 				Name:             "server",
 				Script:           "php -S localhost:8080 app/web/index.php",
 				Env:              Environment{},
-				StructuredOutput: DefaultStructuredOutput,
+				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
 			}))
 			Expect(processes).To(ContainElement(Process{
 				Name:             "selenium",
 				Script:           "java -jar /usr/local/bin/selenium-server-standalone.jar",
 				Env:              Environment{},
-				StructuredOutput: DefaultStructuredOutput,
+				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
 			}))
 		})
 
@@ -87,19 +87,9 @@ processes:
 				Name:             "redis",
 				Script:           "redis-server",
 				Env:              env,
-				StructuredOutput: DefaultStructuredOutput,
+				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
 			}))
 
-			conf := DefaultStructuredOutput
-			conf.Format = "json"
-			conf.MessageField = "MESS"
-			conf.LevelField = "level"
-			conf.TaggingRules = append(conf.TaggingRules, TaggingRule{
-				Tag:   "info",
-				Field: "level",
-				Value: "info",
-			})
-			conf.TagColors["info"] = "green"
 			Expect(processes).To(ContainElement(Process{
 				Name:   "my-app",
 				Script: "app run now",
@@ -108,7 +98,21 @@ processes:
 					"test":  "false",
 					"hello": "world",
 				},
-				StructuredOutput: conf,
+				StructuredOutput: StructuredOutput{
+					Format:       "json",
+					MessageField: "MESS",
+					LevelField:   "level",
+					TaggingRules: []TaggingRule{
+						{
+							Tag:   "info",
+							Field: "level",
+							Value: "info",
+						},
+					},
+					TagColors: map[string]string{
+						"info": "green",
+					},
+				},
 			}))
 		})
 	})

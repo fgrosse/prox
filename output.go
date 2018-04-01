@@ -13,6 +13,30 @@ import (
 	"github.com/pkg/errors"
 )
 
+// DefaultStructuredOutput is the default configuration for processes that do
+// not specify structured log output specifically.
+var DefaultStructuredOutput = StructuredOutput{
+	Format:       "auto",
+	MessageField: "msg",
+	LevelField:   "level",
+	TagColors: map[string]string{
+		"error": "red",
+		"fatal": "red",
+	},
+	TaggingRules: []TaggingRule{
+		{
+			Tag:   "error",
+			Field: "level",
+			Value: "/(ERR(O|OR)?)|(WARN(ING)?)/i",
+		},
+		{
+			Tag:   "fatal",
+			Field: "level",
+			Value: "/FATAL?|PANIC/i",
+		},
+	},
+}
+
 // output provides synchronized and colored *formattedOutput instances.
 // Every Executor should always use a single *output instance to create the
 // io.Writers for the processes it spawns.
@@ -88,6 +112,11 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 		po.prefix = name + " │ "
 	} else {
 		po.prefix = fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault)
+	}
+
+	if p.StructuredOutput.Format == "" {
+		// TODO: add validation which requires Format if any other field is set
+		p.StructuredOutput = DefaultStructuredOutput
 	}
 
 	var w io.Writer = po
