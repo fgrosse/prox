@@ -79,6 +79,10 @@ func printRunConfiguration(all, verbose bool, processName string, pp []prox.Proc
 		logger.Error(fmt.Sprintf("No such process %q. Use`prox show --all` to see a list of all available processes", processName))
 	}
 
+	if p.Output.Format == "" {
+		p.Output = prox.DefaultStructuredOutput
+	}
+
 	if verbose {
 		out, err := json.MarshalIndent(p, "", "    ")
 		if err != nil {
