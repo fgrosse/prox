@@ -93,13 +93,11 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 	var w io.Writer = po
 	switch p.StructuredOutput.Format {
 	case "json":
-		jo := newProcessJSONOutput(po, p)
+		jo := newProcessJSONOutput(po, p.StructuredOutput)
 		w = newBufferedProcessOutput(jo)
-	case "auto", "":
-		// TODO: implement output type that decides based on the first message
-		//       what format to choose.
 	default:
-		// any other format is silently ignored
+		ao := newProcessAutoDetectOutput(po, p.StructuredOutput)
+		w = newBufferedProcessOutput(ao)
 	}
 
 	return newMultiWriter(w)
@@ -232,6 +230,45 @@ func (o *bufferedWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// a processAutoDetectOutput attempts to detect the log format (e.g. JSON or
+// plain) from the first message it receives and then either prints output
+// unchanged or delegates it to its processJSONOutput.
+type processAutoDetectOutput struct {
+	io.Writer
+	mu   sync.Mutex
+	conf StructuredOutput
+}
+
+func newProcessAutoDetectOutput(w io.Writer, conf StructuredOutput) *processAutoDetectOutput {
+	conf.Format = "auto"
+	return &processAutoDetectOutput{
+		Writer: w,
+		conf:   conf,
+	}
+}
+
+func (o *processAutoDetectOutput) Write(line []byte) (int, error) {
+	o.mu.Lock()
+	if o.conf.Format == "auto" {
+		o.detectFormat(line)
+	}
+	o.mu.Unlock()
+
+	return o.Writer.Write(line)
+}
+
+func (o *processAutoDetectOutput) detectFormat(line []byte) {
+	m := map[string]interface{}{}
+	err := json.Unmarshal(line, &m)
+	switch {
+	case err != nil:
+		o.conf.Format = "unknown"
+	case err == nil:
+		o.conf.Format = "json"
+		o.Writer = newProcessJSONOutput(o.Writer, o.conf)
+	}
+}
+
 // a processJSONOutput is an io.Writer for processes which emit structured JSON
 // messages. This writer expects that it will always receive complete json
 // encoded messages on each write. Thus it is usually best to wrap each
@@ -252,18 +289,18 @@ type tagAction struct {
 	color color
 }
 
-func newProcessJSONOutput(w io.Writer, p Process) *processJSONOutput {
+func newProcessJSONOutput(w io.Writer, conf StructuredOutput) *processJSONOutput {
 	o := &processJSONOutput{
 		Writer:       w,
-		messageField: p.StructuredOutput.MessageField,
-		levelField:   p.StructuredOutput.LevelField,
+		messageField: conf.MessageField,
+		levelField:   conf.LevelField,
 	}
 
-	for _, r := range p.StructuredOutput.TaggingRules {
+	for _, r := range conf.TaggingRules {
 		o.addTaggingRule(r.Field, r.Value, r.Tag)
 	}
 
-	for tag, c := range p.StructuredOutput.TagColors {
+	for tag, c := range conf.TagColors {
 		o.setTagAction(tag, tagAction{color: parseColor(c)})
 	}
 

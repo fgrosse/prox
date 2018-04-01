@@ -20,7 +20,7 @@ var _ = Describe("output", func() {
 			}
 
 			po := o.next(Process{Name: "test"})
-			po.Write([]byte("This is a log message"))
+			po.Write([]byte("This is a log message\n"))
 
 			prefix := colorDefault + colorBold + colorYellow + "test     │ " + colorDefault
 			Expect(buffer.String()).To(BeEquivalentTo(prefix + "This is a log message\n"))
@@ -36,7 +36,7 @@ var _ = Describe("output", func() {
 				}
 
 				po := o.next(Process{Name: "test"})
-				po.Write([]byte("This is a log message"))
+				po.Write([]byte("This is a log message\n"))
 
 				Expect(buffer.String()).To(Equal("test     │ This is a log message\n"))
 			})
@@ -89,14 +89,9 @@ var _ = Describe("multiWriter", func() {
 })
 
 var _ = Describe("processJSONOutput", func() {
-	writeLine := func(w io.Writer, s string) {
-		_, err := w.Write([]byte(s + "\n"))
-		Expect(err).NotTo(HaveOccurred())
-	}
-
 	It("should output the message as well readable text", func() {
 		w := new(bytes.Buffer)
-		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+		o := newProcessJSONOutput(w, StructuredOutput{MessageField: "message", LevelField: "level"})
 
 		writeLine(o, `{"level": "info", "message": "Hello World", "foo": "bar"}`)
 		writeLine(o, `{"level": "info", "message": "An error has occurred", "n":42, "object": {"test":true}}`)
@@ -109,7 +104,7 @@ var _ = Describe("processJSONOutput", func() {
 
 	It("should color messages based on the parsed log level", func() {
 		w := new(bytes.Buffer)
-		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+		o := newProcessJSONOutput(w, StructuredOutput{MessageField: "message", LevelField: "level"})
 		o.addTaggingRule("level", "error", "error")
 		o.setTagAction("error", tagAction{color: colorRed})
 
@@ -124,7 +119,7 @@ var _ = Describe("processJSONOutput", func() {
 
 	It("should color messages using regular expressions", func() {
 		w := new(bytes.Buffer)
-		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+		o := newProcessJSONOutput(w, StructuredOutput{MessageField: "message", LevelField: "level"})
 		o.addTaggingRule("message", "/t..t/", "my-tag")
 		o.setTagAction("my-tag", tagAction{color: colorBlue})
 
@@ -139,9 +134,16 @@ var _ = Describe("processJSONOutput", func() {
 
 	It("should color messages using regular expressions supporting case insensitive matching", func() {
 		w := new(bytes.Buffer)
-		o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
-		o.addTaggingRule("message", "/t..t/i", "my-tag")
-		o.setTagAction("my-tag", tagAction{color: colorBlue})
+		o := newProcessJSONOutput(w, StructuredOutput{
+			MessageField: "message",
+			LevelField:   "level",
+			TaggingRules: []TaggingRule{
+				{Field: "message", Value: "/t..t/i", Tag: "my-tag"},
+			},
+			TagColors: map[string]string{
+				"my-tag": "blue",
+			},
+		})
 
 		writeLine(o, `{"level": "info",  "message": "This is a tEsT"}`)
 		writeLine(o, `{"level": "error", "message": "An error has occurred"}`)
@@ -155,7 +157,7 @@ var _ = Describe("processJSONOutput", func() {
 	Describe("weird input", func() {
 		It("should not crash if the message field is not present", func() {
 			w := new(bytes.Buffer)
-			o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+			o := newProcessJSONOutput(w, StructuredOutput{MessageField: "message", LevelField: "level"})
 
 			writeLine(o, `{"level": "info"}`)
 			writeLine(o, `{"level": "info", "n":42, "object": {"test":true}}`)
@@ -168,7 +170,7 @@ var _ = Describe("processJSONOutput", func() {
 
 		It("should not crash if the level field is not present", func() {
 			w := new(bytes.Buffer)
-			o := &processJSONOutput{Writer: w, messageField: "message", levelField: "level"}
+			o := newProcessJSONOutput(w, StructuredOutput{MessageField: "message", LevelField: "level"})
 
 			writeLine(o, `{"message": "Hello World", "foo": "bar"}`)
 			writeLine(o, `{"message": "An error has occurred", "n":42, "object": {"test":true}}`)
@@ -180,3 +182,38 @@ var _ = Describe("processJSONOutput", func() {
 		})
 	})
 })
+
+var _ = Describe("processAutoDetectOutput", func() {
+	It("should automatically detect JSON output", func() {
+		w := new(bytes.Buffer)
+		o := newProcessAutoDetectOutput(w, StructuredOutput{MessageField: "message", LevelField: "level"})
+
+		writeLine(o, `{"level": "info", "message": "Hello World", "foo": "bar"}`)
+		writeLine(o, `{"level": "info", "message": "An error has occurred", "n":42, "object": {"test":true}}`)
+
+		Expect(w.String()).To(Equal(strings.Join([]string{
+			"[INFO]\tHello World\t" + `{ "foo": "bar" }`,
+			"[INFO]\tAn error has occurred\t" + `{ "n": 42, "object": { "test": true } }`,
+		}, "\n") + "\n"))
+	})
+
+	It("should print non-JSON output normally", func() {
+		w := new(bytes.Buffer)
+		o := newProcessAutoDetectOutput(w, StructuredOutput{MessageField: "message", LevelField: "level"})
+
+		writeLine(o, "This is an unstructured message. It should be printed unchanged")
+		writeLine(o, `{"level": "info", "message": "If there is JSON output later we still print it normally"}`)
+		writeLine(o, "Another message")
+
+		Expect(w.String()).To(Equal(strings.Join([]string{
+			"This is an unstructured message. It should be printed unchanged",
+			`{"level": "info", "message": "If there is JSON output later we still print it normally"}`,
+			"Another message",
+		}, "\n") + "\n"))
+	})
+})
+
+func writeLine(w io.Writer, s string) {
+	_, err := w.Write([]byte(s + "\n"))
+	Expect(err).NotTo(HaveOccurred())
+}

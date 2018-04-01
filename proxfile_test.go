@@ -20,9 +20,25 @@ processes:
 			processes, err := ParseProxFile(strings.NewReader(content), Environment{})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(processes).To(HaveLen(3))
-			Expect(processes).To(ContainShellTask("redis", "bin/redis-server conf/redis.conf"))
-			Expect(processes).To(ContainShellTask("server", "php -S localhost:8080 app/web/index.php"))
-			Expect(processes).To(ContainShellTask("selenium", "java -jar /usr/local/bin/selenium-server-standalone.jar"))
+
+			Expect(processes).To(ContainElement(Process{
+				Name:             "redis",
+				Script:           "bin/redis-server conf/redis.conf",
+				Env:              Environment{},
+				StructuredOutput: DefaultStructuredOutput,
+			}))
+			Expect(processes).To(ContainElement(Process{
+				Name:             "server",
+				Script:           "php -S localhost:8080 app/web/index.php",
+				Env:              Environment{},
+				StructuredOutput: DefaultStructuredOutput,
+			}))
+			Expect(processes).To(ContainElement(Process{
+				Name:             "selenium",
+				Script:           "java -jar /usr/local/bin/selenium-server-standalone.jar",
+				Env:              Environment{},
+				StructuredOutput: DefaultStructuredOutput,
+			}))
 		})
 
 		Describe("setting environment variables", func() {
@@ -50,14 +66,9 @@ processes:
       - test=false
     format: json
     fields:
-      message: msg
+      message: MESS
       level: level
     tags:
-      error:
-        color: red
-        condition:
-          field: level
-          value: error
       info:
         color: green
         condition:
@@ -68,13 +79,27 @@ processes:
 		It("should parse process from the content", func() {
 			env := Environment{"test": "true", "hello": "world"}
 			processes, err := ParseProxFile(strings.NewReader(content), env)
+
 			Expect(err).NotTo(HaveOccurred())
 			Expect(processes).To(HaveLen(2))
+
 			Expect(processes).To(ContainElement(Process{
-				Name:   "redis",
-				Script: "redis-server",
-				Env:    env,
+				Name:             "redis",
+				Script:           "redis-server",
+				Env:              env,
+				StructuredOutput: DefaultStructuredOutput,
 			}))
+
+			conf := DefaultStructuredOutput
+			conf.Format = "json"
+			conf.MessageField = "MESS"
+			conf.LevelField = "level"
+			conf.TaggingRules = append(conf.TaggingRules, TaggingRule{
+				Tag:   "info",
+				Field: "level",
+				Value: "info",
+			})
+			conf.TagColors["info"] = "green"
 			Expect(processes).To(ContainElement(Process{
 				Name:   "my-app",
 				Script: "app run now",
@@ -83,27 +108,7 @@ processes:
 					"test":  "false",
 					"hello": "world",
 				},
-				StructuredOutput: StructuredOutput{
-					Format:       "json",
-					MessageField: "msg",
-					LevelField:   "level",
-					TaggingRules: []TaggingRule{
-						{
-							Tag:   "error",
-							Field: "level",
-							Value: "error",
-						},
-						{
-							Tag:   "info",
-							Field: "level",
-							Value: "info",
-						},
-					},
-					TagColors: map[string]string{
-						"error": "red",
-						"info":  "green",
-					},
-				},
+				StructuredOutput: conf,
 			}))
 		})
 	})

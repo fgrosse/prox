@@ -13,7 +13,6 @@
 
 ### Output
 - apply tags also to output send via "prox tail"
-- auto detect JSON logs
 
 ### Client / Server
 - restart process (e.g. because its binary was rebuild)
