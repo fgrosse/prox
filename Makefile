@@ -1,6 +1,6 @@
 .PHONY: test install release
 
-VERSION=$(shell git describe)
+VERSION=$(shell git describe --dirty)
 
 test:
 	go test -race -cover
