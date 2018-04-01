@@ -20,8 +20,7 @@ type Process struct {
 	Name   string
 	Script string
 	Env    Environment
-
-	StructuredOutput StructuredOutput // optional
+	Output StructuredOutput // optional
 }
 
 // ProcessInfo contains information about a running process.

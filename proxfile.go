@@ -83,7 +83,7 @@ func ParseProxFile(reader io.Reader, env Environment) ([]Process, error) {
 			Name:   strings.TrimSpace(name),
 			Script: strings.TrimSpace(pp.Script),
 			Env:    env,
-			StructuredOutput: StructuredOutput{
+			Output: StructuredOutput{
 				Format:       pp.Format, // if empty the DefaultStructuredOutput will be applied automatically
 				MessageField: pp.Fields.Message,
 				LevelField:   pp.Fields.Level,
@@ -91,14 +91,14 @@ func ParseProxFile(reader io.Reader, env Environment) ([]Process, error) {
 			},
 		}
 
-		if p.StructuredOutput.Format == "json" {
+		if p.Output.Format == "json" {
 			for tag, tagDef := range pp.Tags {
-				p.StructuredOutput.TaggingRules = append(p.StructuredOutput.TaggingRules, TaggingRule{
+				p.Output.TaggingRules = append(p.Output.TaggingRules, TaggingRule{
 					Tag:   tag,
 					Field: tagDef.Condition.Field,
 					Value: tagDef.Condition.Value,
 				})
-				p.StructuredOutput.TagColors[tag] = tagDef.Color
+				p.Output.TagColors[tag] = tagDef.Color
 			}
 		}
 

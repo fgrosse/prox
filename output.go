@@ -114,18 +114,18 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 		po.prefix = fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault)
 	}
 
-	if p.StructuredOutput.Format == "" {
+	if p.Output.Format == "" {
 		// TODO: add validation which requires Format if any other field is set
-		p.StructuredOutput = DefaultStructuredOutput
+		p.Output = DefaultStructuredOutput
 	}
 
 	var w io.Writer = po
-	switch p.StructuredOutput.Format {
+	switch p.Output.Format {
 	case "json":
-		jo := newProcessJSONOutput(po, p.StructuredOutput)
+		jo := newProcessJSONOutput(po, p.Output)
 		w = newBufferedProcessOutput(jo)
 	default:
-		ao := newProcessAutoDetectOutput(po, p.StructuredOutput)
+		ao := newProcessAutoDetectOutput(po, p.Output)
 		w = newBufferedProcessOutput(ao)
 	}
 

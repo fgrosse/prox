@@ -22,22 +22,22 @@ processes:
 			Expect(processes).To(HaveLen(3))
 
 			Expect(processes).To(ContainElement(Process{
-				Name:             "redis",
-				Script:           "bin/redis-server conf/redis.conf",
-				Env:              Environment{},
-				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
+				Name:   "redis",
+				Script: "bin/redis-server conf/redis.conf",
+				Env:    Environment{},
+				Output: StructuredOutput{TagColors: map[string]string{}},
 			}))
 			Expect(processes).To(ContainElement(Process{
-				Name:             "server",
-				Script:           "php -S localhost:8080 app/web/index.php",
-				Env:              Environment{},
-				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
+				Name:   "server",
+				Script: "php -S localhost:8080 app/web/index.php",
+				Env:    Environment{},
+				Output: StructuredOutput{TagColors: map[string]string{}},
 			}))
 			Expect(processes).To(ContainElement(Process{
-				Name:             "selenium",
-				Script:           "java -jar /usr/local/bin/selenium-server-standalone.jar",
-				Env:              Environment{},
-				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
+				Name:   "selenium",
+				Script: "java -jar /usr/local/bin/selenium-server-standalone.jar",
+				Env:    Environment{},
+				Output: StructuredOutput{TagColors: map[string]string{}},
 			}))
 		})
 
@@ -84,10 +84,10 @@ processes:
 			Expect(processes).To(HaveLen(2))
 
 			Expect(processes).To(ContainElement(Process{
-				Name:             "redis",
-				Script:           "redis-server",
-				Env:              env,
-				StructuredOutput: StructuredOutput{TagColors: map[string]string{}},
+				Name:   "redis",
+				Script: "redis-server",
+				Env:    env,
+				Output: StructuredOutput{TagColors: map[string]string{}},
 			}))
 
 			Expect(processes).To(ContainElement(Process{
@@ -98,7 +98,7 @@ processes:
 					"test":  "false",
 					"hello": "world",
 				},
-				StructuredOutput: StructuredOutput{
+				Output: StructuredOutput{
 					Format:       "json",
 					MessageField: "MESS",
 					LevelField:   "level",
