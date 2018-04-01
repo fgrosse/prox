@@ -37,6 +37,26 @@ var DefaultStructuredOutput = StructuredOutput{
 	},
 }
 
+// StructuredOutput contains all configuration to setup advanced functionality
+// for structured logs.
+type StructuredOutput struct {
+	Format       string // e.g. "json", the zero value makes prox auto-detect the format
+	MessageField string
+	LevelField   string
+
+	TaggingRules []TaggingRule
+	TagColors    map[string]string
+}
+
+// A TaggingRule may be applied to a structured log message to tag it. These
+// tags can then later be used to change the log lines appearance or to modify
+// its content.
+type TaggingRule struct {
+	Field string
+	Value string // either a concrete string or a regex like so: "/error|fatal/i"
+	Tag   string
+}
+
 // output provides synchronized and colored *formattedOutput instances.
 // Every Executor should always use a single *output instance to create the
 // io.Writers for the processes it spawns.

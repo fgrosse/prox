@@ -21,21 +21,6 @@ type Executor struct {
 	messages     chan message
 }
 
-type StructuredOutput struct {
-	Format       string // e.g. "json", the zero value disables structured output parsing
-	MessageField string
-	LevelField   string
-
-	TaggingRules []TaggingRule
-	TagColors    map[string]string
-}
-
-type TaggingRule struct {
-	Field string
-	Value string // either a concrete string or a regex like so: "/error|fatal/i"
-	Tag   string
-}
-
 // messages are passed to signal that a specific process has finished along with
 // its reason for termination (i.e. status). For each started process we expect
 // a single message to eventually be sent to the Executor.
