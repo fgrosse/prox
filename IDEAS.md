@@ -2,7 +2,6 @@
 
 ### General
 - fix all TODOs!
-- implement structured log defaults at the core (instead of in Proxfile AND Procfile)
 - process validation
   - valid script (existence?)
   - valid structured log format
