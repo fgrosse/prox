@@ -29,7 +29,12 @@ var logger *zap.Logger
 var cmd = &cobra.Command{
 	Use:   "prox",
 	Short: "A process runner for Procfile-based applications",
-	Run:   run,
+	Long: fmt.Sprintf(`A process runner for Procfile-based applications
+
+Version: %s
+
+`, Version),
+	Run: run,
 }
 
 func main() {
