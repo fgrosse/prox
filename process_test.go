@@ -20,6 +20,84 @@ import (
 	"go.uber.org/zap"
 )
 
+var _ = Describe("Process", func() {
+	Describe("Validate", func() {
+		It("should return an error if the name is missing", func() {
+			p := Process{Script: "echo test"}
+			Expect(p.Validate()).To(MatchError("missing name"))
+		})
+
+		It("should return an error if the name only consists of whitespace", func() {
+			p := Process{Script: "echo test", Name: "\t\n\r "}
+			Expect(p.Validate()).To(MatchError("missing name"))
+		})
+
+		It("should return an error if the script is empty", func() {
+			p := Process{Name: "test"}
+			Expect(p.Validate()).To(MatchError("missing script"))
+		})
+
+		It("should return an error if the script only consists of whitespace", func() {
+			p := Process{Name: "test", Script: "\t\n\r "}
+			Expect(p.Validate()).To(MatchError("missing script"))
+		})
+
+		It("should return an error if the structured log format is unknown", func() {
+			p := Process{Name: "test", Script: "echo test"}
+			p.Output.Format = "foobar"
+			Expect(p.Validate()).To(MatchError(`unknown log output format "foobar"`))
+		})
+
+		It("should return an error if the log format is configured but fields are missing", func() {
+			p := Process{Name: "test", Script: "echo test"}
+			p.Output.Format = "json"
+			err := p.Validate()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(`missing log output "message" field`))
+			Expect(err.Error()).To(ContainSubstring(`missing log output "level" field`))
+		})
+
+		It("should not return an error if no explicit log format is specified", func() {
+			p := Process{Name: "test", Script: "echo test"}
+			Expect(p.Validate()).To(Succeed())
+		})
+
+		It("should not require any explicit fields when using the 'auto' log format", func() {
+			p := Process{Name: "test", Script: "echo test"}
+			p.Output.Format = "auto"
+			Expect(p.Validate()).To(Succeed())
+		})
+	})
+})
+
+var _ = Describe("Validate", func() {
+	It("should validate all processes and return all errors", func() {
+		err := Validate([]Process{
+			{Script: "echo test"},
+			{Name: "test"},
+			{Name: "foobar", Output: StructuredOutput{Format: "???"}},
+		})
+
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(`process 1: missing name`))
+		Expect(err.Error()).To(ContainSubstring(`process "test": missing script`))
+		Expect(err.Error()).To(ContainSubstring(`process "foobar": missing script`))
+		Expect(err.Error()).To(ContainSubstring(`process "foobar": unknown log output format "???"`))
+	})
+
+	It("should return an error if a process name is used multiple times", func() {
+		err := Validate([]Process{
+			{Name: "test", Script: "echo test 1"},
+			{Name: "test", Script: "echo test 2"},
+			{Name: "test", Script: "echo test 3"},
+		})
+
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(`process 2: name "test" is already used`))
+		Expect(err.Error()).To(ContainSubstring(`process 3: name "test" is already used`))
+	})
+})
+
 var _ = Describe("process", func() {
 	Describe("Name", func() {
 		It("should return the process.name", func() {

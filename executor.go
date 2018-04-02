@@ -65,9 +65,6 @@ func (e *Executor) DisableColoredOutput() {
 func (e *Executor) Run(ctx context.Context, processes []Process) error {
 	logger := e.proxLogger(processes)
 
-	// TODO: check for duplicate processes
-	// TODO: generally run full validation (e.g. all processes must have a script)
-
 	// make sure all log output is flushed before we leave this function
 	defer logger.Sync()
 	go e.monitorContext(ctx, logger)
@@ -86,8 +83,8 @@ func (e *Executor) Run(ctx context.Context, processes []Process) error {
 
 // proxOutput creates a logger for the prox Executor itself. The given processes
 // are required to calculate the prefix of the log output line.
-func (e *Executor) proxLogger(pp []Process) *zap.Logger {
-	output := e.newOutput(pp)
+func (e *Executor) proxLogger(processes []Process) *zap.Logger {
+	output := e.newOutput(processes)
 	out := output.nextColored(Process{Name: "prox"}, e.proxLogColor)
 	return NewLogger(out, e.debug)
 }

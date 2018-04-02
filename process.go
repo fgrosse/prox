@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -28,6 +30,65 @@ type ProcessInfo struct {
 	Name   string
 	PID    int
 	Uptime time.Duration
+}
+
+// Validate checks if all given processes are valid and no process name is used
+// multiple times. If an error is returned it will be a multierror.
+func Validate(pp []Process) error {
+	errs := newMultiError()
+	seen := map[string]struct{}{}
+	for i, p := range pp {
+		if _, ok := seen[p.Name]; ok {
+			errs = multierror.Append(errs, errors.Errorf("process %d: name %q is already used", i+1, p.Name))
+		}
+		seen[p.Name] = struct{}{}
+
+		err := p.Validate()
+		if err == nil {
+			continue
+		}
+
+		id := fmt.Sprintf("%q", strings.TrimSpace(p.Name))
+		if id == `""` {
+			id = fmt.Sprint(i + 1)
+		}
+
+		for _, err := range err.(*multierror.Error).Errors {
+			errs = multierror.Append(errs, errors.Wrap(err, "process "+id))
+		}
+	}
+
+	return errs.ErrorOrNil()
+}
+
+// Validate checks that the Process configuration is complete and without errors.
+// If an error is returned it will be a multierror.
+func (p Process) Validate() error {
+	errs := newMultiError()
+
+	if strings.TrimSpace(p.Name) == "" {
+		errs = multierror.Append(errs, errors.New("missing name"))
+	}
+
+	if strings.TrimSpace(p.Script) == "" {
+		errs = multierror.Append(errs, errors.New("missing script"))
+	}
+
+	switch p.Output.Format {
+	case "", "auto":
+		// using default values, nothing to check
+	case "json":
+		if p.Output.MessageField == "" {
+			errs = multierror.Append(errs, errors.New(`missing log output "message" field`))
+		}
+		if p.Output.LevelField == "" {
+			errs = multierror.Append(errs, errors.New(`missing log output "level" field`))
+		}
+	default:
+		errs = multierror.Append(errs, errors.Errorf("unknown log output format %q", p.Output.Format))
+	}
+
+	return errs.ErrorOrNil()
 }
 
 // A process is an abstraction of a child process which is started by the

@@ -133,7 +133,8 @@ of `prox help`.
 Prox uses [go dep][go-dep] as dependency management tool. All vendored dependencies
 are specified in the [Gopkg.toml](Gopkg.toml) file and are checked in in the [vendor](vendor)
 directory. Prox itself mainly relies on the Go standard library, [zap][zap] for logging,
-[cobra/viper][cobra] for the CLI and [pkg/errors][pkg-errors] for error wrapping.
+[cobra/viper][cobra] for the CLI and [pkg/errors][pkg-errors] for error wrapping as well
+as [hashicorp/go-multierror][multi-errors].
 
 ## License
 
@@ -163,3 +164,4 @@ usually try to react within the week ☺.
 [zap]: https://godoc.org/go.uber.org/zap
 [cobra]: https://github.com/spf13/cobra
 [pkg-errors]: https://github.com/pkg/errors
+[multi-errors]: https://github.com/hashicorp/go-multierror

@@ -9,6 +9,7 @@ import (
 )
 
 type Proxfile struct {
+	Version   string
 	Processes map[string]ProxfileProcess
 }
 
@@ -68,10 +69,23 @@ func (p *ProxfileProcess) UnmarshalYAML(unmarshal func(interface{}) error) error
 }
 
 func ParseProxFile(reader io.Reader, env Environment) ([]Process, error) {
+	dec := yaml.NewDecoder(reader)
+	dec.SetStrict(true)
+
 	var proxfile Proxfile
-	err := yaml.NewDecoder(reader).Decode(&proxfile)
+	err := dec.Decode(&proxfile)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decode Proxfile as YAML")
+	}
+
+	switch proxfile.Version {
+	case "", "1":
+		// current version
+	default:
+		return nil, errors.Errorf("unknown Proxfile version %q. "+
+			"Run `prox version` to see which version you are currently running.",
+			proxfile.Version,
+		)
 	}
 
 	var processes []Process

@@ -2,10 +2,6 @@
 
 ### General
 - fix all TODOs!
-- process validation
-  - valid script (existence?)
-  - valid structured log format
-  - duplicate process names
 - update README
 - review godoc
 - check code coverage
@@ -15,11 +11,13 @@
 
 ### Client / Server
 - restart process (e.g. because its binary was rebuild)
+  - `prox restart foobar`
 
 
 ## Ideas for after v1.0.0
 
 ### General
+- start individual processes via `prox start foo bar baz`
 - allow assigning one ore many groups to processes and then start a group via `prox start <group>` or tail group logs via `prox tail <group>`
 - keep process logs in tmp dir and allow tailing logs from start
 - add way to start everything except some specific processes

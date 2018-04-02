@@ -135,7 +135,6 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 	}
 
 	if p.Output.Format == "" {
-		// TODO: add validation which requires Format if any other field is set
 		p.Output = DefaultStructuredOutput
 	}
 

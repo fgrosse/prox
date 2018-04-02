@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"bitbucket.org/corvan/prox"
+	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -42,6 +43,14 @@ func run(cmd *cobra.Command, _ []string) {
 	pp, err := processes(env, viper.GetString("procfile"))
 	if err != nil {
 		logger.Error("Failed to parse Procfile: " + err.Error())
+		os.Exit(StatusBadProcFile)
+	}
+
+	err = prox.Validate(pp)
+	if errs, ok := err.(*multierror.Error); ok {
+		for _, err := range errs.Errors {
+			logger.Error(err.Error())
+		}
 		os.Exit(StatusBadProcFile)
 	}
 
