@@ -1,4 +1,4 @@
-.PHONY: test install release
+.PHONY: test install release dep-status
 
 VERSION=$(shell git describe --dirty)
 
@@ -8,7 +8,7 @@ test:
 install:
 	go build -ldflags "-s -w -X main.Version=$(VERSION)" -o $$GOPATH/bin/prox ./cmd/prox
 
-release: LICENSE-THIRD-PARTY
+release: dep-status LICENSE-THIRD-PARTY
 	mkdir -p releases
 	mkdir -p release-$(VERSION)
 	cp LICENSE release-$(VERSION)
@@ -37,6 +37,8 @@ release: LICENSE-THIRD-PARTY
 
 	rm -R release-$(VERSION)
 
+dep-status:
+	dep status
 
 LICENSE-THIRD-PARTY: $(shell find vendor -name LICENSE)
 	@echo -e "Third party libraries\n" > $@
