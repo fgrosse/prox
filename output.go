@@ -16,23 +16,26 @@ import (
 // DefaultStructuredOutput returns the default configuration for processes that
 // do not specify structured log output specifically.
 func DefaultStructuredOutput(env Environment) StructuredOutput {
+	msgField := env.Get("PROX_MESSAGE_FIELD", "msg")
+	lvlField := env.Get("PROX_LEVEL_FIELD", "level")
+
 	return StructuredOutput{
 		Format:       "auto",
-		MessageField: env.Get("PROX_MESSAGE_FIELD", "msg"),
-		LevelField:   env.Get("PROX_LEVEL_FIELD", "level"),
+		MessageField: msgField,
+		LevelField:   lvlField,
 		TagColors: map[string]string{
-			"error": "red",
-			"fatal": "red",
+			"error": "red-bold", // TODO: support bold for all colors
+			"fatal": "red-bold",
 		},
 		TaggingRules: []TaggingRule{
 			{
 				Tag:   "error",
-				Field: "level",
+				Field: lvlField,
 				Value: "/(ERR(O|OR)?)|(WARN(ING)?)/i",
 			},
 			{
 				Tag:   "fatal",
-				Field: "level",
+				Field: lvlField,
 				Value: "/FATAL?|PANIC/i",
 			},
 		},

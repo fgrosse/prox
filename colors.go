@@ -21,6 +21,8 @@ func parseColor(s string) color {
 	switch s {
 	case "red":
 		return colorRed
+	case "red-bold":
+		return colorRed + colorBold
 	case "green":
 		return colorGreen
 	case "yellow":
