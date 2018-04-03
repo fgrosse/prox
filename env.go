@@ -58,6 +58,16 @@ func NewEnv(values []string) Environment {
 	return env
 }
 
+// Get retrieves the key from the Environment or returns the given default value
+// if that key was not set
+func (e Environment) Get(key, defaultValue string) string {
+	if value, ok := e[key]; ok {
+		return value
+	}
+
+	return defaultValue
+}
+
 // Set splits the input string at the first "=" character (if any) and sets the
 // resulting key and value on e.
 func (e Environment) Set(s string) {

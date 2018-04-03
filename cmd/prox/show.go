@@ -52,11 +52,11 @@ var showCmd = &cobra.Command{
 			os.Exit(StatusBadProcFile)
 		}
 
-		printRunConfiguration(all, verbose, name, pp)
+		printRunConfiguration(all, verbose, name, env, pp)
 	},
 }
 
-func printRunConfiguration(all, verbose bool, processName string, pp []prox.Process) {
+func printRunConfiguration(all, verbose bool, processName string, env prox.Environment, pp []prox.Process) {
 	if all {
 		w := tabwriter.NewWriter(os.Stdout, 8, 8, 2, ' ', 0)
 		fmt.Fprintln(w, "NAME\tSCRIPT")
@@ -80,7 +80,7 @@ func printRunConfiguration(all, verbose bool, processName string, pp []prox.Proc
 	}
 
 	if p.Output.Format == "" {
-		p.Output = prox.DefaultStructuredOutput
+		p.Output = prox.DefaultStructuredOutput(env)
 	}
 
 	if verbose {

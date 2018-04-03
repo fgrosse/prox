@@ -13,28 +13,30 @@ import (
 	"github.com/pkg/errors"
 )
 
-// DefaultStructuredOutput is the default configuration for processes that do
-// not specify structured log output specifically.
-var DefaultStructuredOutput = StructuredOutput{
-	Format:       "auto",
-	MessageField: "msg",
-	LevelField:   "level",
-	TagColors: map[string]string{
-		"error": "red",
-		"fatal": "red",
-	},
-	TaggingRules: []TaggingRule{
-		{
-			Tag:   "error",
-			Field: "level",
-			Value: "/(ERR(O|OR)?)|(WARN(ING)?)/i",
+// DefaultStructuredOutput returns the default configuration for processes that
+// do not specify structured log output specifically.
+func DefaultStructuredOutput(env Environment) StructuredOutput {
+	return StructuredOutput{
+		Format:       "auto",
+		MessageField: env.Get("PROX_MESSAGE_FIELD", "msg"),
+		LevelField:   env.Get("PROX_LEVEL_FIELD", "level"),
+		TagColors: map[string]string{
+			"error": "red",
+			"fatal": "red",
 		},
-		{
-			Tag:   "fatal",
-			Field: "level",
-			Value: "/FATAL?|PANIC/i",
+		TaggingRules: []TaggingRule{
+			{
+				Tag:   "error",
+				Field: "level",
+				Value: "/(ERR(O|OR)?)|(WARN(ING)?)/i",
+			},
+			{
+				Tag:   "fatal",
+				Field: "level",
+				Value: "/FATAL?|PANIC/i",
+			},
 		},
-	},
+	}
 }
 
 // StructuredOutput contains all configuration to setup advanced functionality
@@ -135,7 +137,7 @@ func (o *output) nextColored(p Process, c color) *multiWriter {
 	}
 
 	if p.Output.Format == "" {
-		p.Output = DefaultStructuredOutput
+		p.Output = DefaultStructuredOutput(p.Env)
 	}
 
 	var w io.Writer = po
