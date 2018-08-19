@@ -146,7 +146,7 @@ func (e *Executor) waitForAll(interruptAll func(), logger *zap.Logger) error {
 		logger.Debug("Waiting for processes to complete", zap.Int("amount", len(e.running)))
 
 		message := <-e.messages
-		name := message.p.Name() // TODO what if names collide?
+		name := message.p.Name()
 		delete(e.running, name)
 
 		switch message.status {

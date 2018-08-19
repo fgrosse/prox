@@ -2,6 +2,7 @@ package prox
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"strings"
 
@@ -210,6 +211,43 @@ var _ = Describe("processAutoDetectOutput", func() {
 			`{"level": "info", "message": "If there is JSON output later we still print it normally"}`,
 			"Another message",
 		}, "\n") + "\n"))
+	})
+})
+
+var _ = Describe("bufferedWriter", func() {
+	It("should print complete lines", func() {
+		out := new(bytes.Buffer)
+		w := newBufferedProcessOutput(out)
+		fmt.Fprint(w, "This is a complete line\n")
+		Expect(out.String()).To(Equal("This is a complete line\n"))
+	})
+
+	It("should buffer output until the newline is complete", func() {
+		out := new(bytes.Buffer)
+		w := newBufferedProcessOutput(out)
+		fmt.Fprint(w, "This")
+		Expect(out.String()).To(BeEmpty())
+		fmt.Fprint(w, " is a ")
+		Expect(out.String()).To(BeEmpty())
+		fmt.Fprint(w, "comp")
+		Expect(out.String()).To(BeEmpty())
+		fmt.Fprint(w, "lete line\n")
+		Expect(out.String()).To(Equal("This is a complete line\n"))
+	})
+
+	It("should work with windows line endings (CRLF)", func() {
+		out := new(bytes.Buffer)
+		w := newBufferedProcessOutput(out)
+		fmt.Fprint(w, "This is line")
+		Expect(out.String()).To(BeEmpty())
+		fmt.Fprint(w, " one\r\n")
+		Expect(out.String()).To(Equal("This is line one\r\n"))
+
+		out.Reset()
+		fmt.Fprint(w, "And line two")
+		Expect(out.String()).To(BeEmpty())
+		fmt.Fprint(w, "\r\n")
+		Expect(out.String()).To(Equal("And line two\r\n"))
 	})
 })
 

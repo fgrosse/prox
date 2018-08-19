@@ -1,7 +1,6 @@
 package prox
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -249,7 +248,6 @@ func (o *formattedOutput) formatMsg(p []byte) string {
 type bufferedWriter struct {
 	io.Writer               // the writer we are eventually emitting our output to
 	buffer    *bytes.Buffer // contains all bytes written up to the next new line
-	reader    *bufio.Reader // used to read lines from the buffer
 }
 
 func newBufferedProcessOutput(w io.Writer) io.Writer {
@@ -257,30 +255,18 @@ func newBufferedProcessOutput(w io.Writer) io.Writer {
 	return &bufferedWriter{
 		Writer: w,
 		buffer: b,
-		reader: bufio.NewReader(b),
 	}
 }
 
 func (o *bufferedWriter) Write(p []byte) (int, error) {
-	n, err := o.buffer.Write(p)
-	if err != nil {
-		return n, err
+	for _, r := range p {
+		_ = o.buffer.WriteByte(r) // TODO: err!
+		if r == '\n' {
+			io.Copy(o.Writer, o.buffer) // TODO: err!
+		}
 	}
 
-	// TODO: test writing multiple lines in a single call (needs to loop until io.EOF)
-	line, err := o.reader.ReadBytes('\n')
-	if err == io.EOF {
-		// we did not write enough data into the buffer yet so we return and
-		// wait for more data to be written in the future.
-		return n, nil
-	}
-	if err != nil {
-		return n, errors.Wrap(err, "line buffer")
-	}
-
-	// TODO: check that the read parts are eventually freed from the buffer
-	_, err = o.Writer.Write(line)
-	return n, err
+	return len(p), nil
 }
 
 // a processAutoDetectOutput attempts to detect the log format (e.g. JSON or
