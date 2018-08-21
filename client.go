@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// A Client connects to a Server via a unix socket to provide advanced
-// functionality on a running prox server.
+// A Client connects to a Server via a unix socket to provide access to a
+// running prox server.
 type Client struct {
 	conn   net.Conn
 	logger *zap.Logger

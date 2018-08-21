@@ -7,8 +7,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// New creates a github.com/hashicorp/go-multierror.Error which is initialized
-// with Format as the ErrorFormat.
 func newMultiError() *multierror.Error {
 	return &multierror.Error{ErrorFormat: func(es []error) string {
 		if len(es) == 0 {

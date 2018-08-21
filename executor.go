@@ -94,6 +94,7 @@ func (e *Executor) newOutput(processes []Process) *output {
 	return newOutput(processes, e.noColors, e.output)
 }
 
+// monitorContext simply logs an error message if the context is canceled.
 func (e *Executor) monitorContext(ctx context.Context, log *zap.Logger) {
 	<-ctx.Done()
 	if ctx.Err() == context.Canceled {
@@ -116,7 +117,7 @@ func (e *Executor) startAll(ctx context.Context, pp []process, logger *zap.Logge
 		e.running[name] = p
 
 		go func(p process) {
-			logger.Info("Starting process", zap.String("process_name", p.Name()))
+			logger.Info("Starting process", zap.String("process_name", name))
 			e.runProcess(ctx, p)
 		}(p)
 	}
@@ -151,14 +152,14 @@ func (e *Executor) waitForAll(interruptAll func(), logger *zap.Logger) error {
 
 		switch message.status {
 		case statusSuccess:
-			logger.Info("Process finished successfully", zap.String("process_name", message.p.Name()))
+			logger.Info("Process finished successfully", zap.String("process_name", name))
 		case statusInterrupted:
-			logger.Info("Process was interrupted", zap.String("process_name", message.p.Name()))
+			logger.Info("Process was interrupted", zap.String("process_name", name))
 		case statusError:
-			logger.Error("Process error", zap.String("process_name", message.p.Name()), zap.Error(message.err))
+			logger.Error("Process error", zap.String("process_name", name), zap.Error(message.err))
 			if firstErr == nil {
 				firstErr = message.err
-				firstErrProcess = message.p.Name()
+				firstErrProcess = name
 			}
 			interruptAll()
 		}

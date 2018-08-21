@@ -31,8 +31,9 @@ type ProxfileProcess struct {
 	}
 }
 
-// proxfileProcess is a 1-1 copy of the ProxfileProcess type to work around infinite recursion when unmarshalling this
-// type from YAML. Every field that is added to one field must also be added to the other.
+// proxfileProcess is a 1-1 copy of the ProxfileProcess type to work around
+// infinite recursion when unmarshalling this type from YAML. Every field that
+// is added to one field must also be added to the other.
 type proxfileProcess struct {
 	Script string
 	Env    []string

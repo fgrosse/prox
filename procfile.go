@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+// ParseProcFile parses a Procfile from the given reader and returns the
+// corresponding set of Processes, each configured with the given Environment.
+//
+// A Procfile defines one process per line.
+// TODO: write more about the format
+// TODO: comments and empty lines
 func ParseProcFile(reader io.Reader, env Environment) ([]Process, error) {
 	s := bufio.NewScanner(reader)
 	var processes []Process

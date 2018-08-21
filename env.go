@@ -20,8 +20,10 @@ type Environment map[string]string
 // by all started processes. Trimmed lines which are empty or start with a "#"
 // are ignored and can be used to add comments.
 //
-// All values are expanded using the Environment. If a value refers to a
-// variable that is not set in e then it is replaced with the empty string.
+// All values are expanded using the Environment. Additionally values in the env
+// file can use other values which have been defined in earlier lines above. If
+// a value refers to an unknown variable then it is replaced with the empty
+// string.
 func (e Environment) ParseEnvFile(r io.Reader) error {
 	s := bufio.NewScanner(r)
 	var i int

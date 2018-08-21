@@ -101,7 +101,7 @@ var _ = Describe("Environment", func() {
 		It("should support spaces in values", func() {
 			envFile := strings.Join([]string{
 				"FOO=some value that contains spaces",
-				"BAR=   spaces at the beginning or end shall be trimmed   ",
+				"BAR=   spaces at the beginning or end shall be trimmed   ", // TODO? really? what if this is required?
 			}, "\n")
 
 			env := Environment{}

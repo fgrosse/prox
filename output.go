@@ -259,10 +259,17 @@ func newBufferedProcessOutput(w io.Writer) io.Writer {
 }
 
 func (o *bufferedWriter) Write(p []byte) (int, error) {
-	for _, r := range p {
-		_ = o.buffer.WriteByte(r) // TODO: err!
+	for i, r := range p {
+		err := o.buffer.WriteByte(r)
+		if err != nil {
+			return i, err
+		}
+
 		if r == '\n' {
-			io.Copy(o.Writer, o.buffer) // TODO: err!
+			_, err := io.Copy(o.Writer, o.buffer)
+			if err != nil {
+				return i, err
+			}
 		}
 	}
 
