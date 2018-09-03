@@ -235,6 +235,13 @@ var _ = Describe("bufferedWriter", func() {
 		Expect(out.String()).To(Equal("This is a complete line\n"))
 	})
 
+	It("should work with multiple lines", func() {
+		out := new(bytes.Buffer)
+		w := newBufferedProcessOutput(out)
+		fmt.Fprint(w, "This is line one\nAnd this is line two\n33333\n")
+		Expect(out.String()).To(Equal("This is line one\nAnd this is line two\n33333\n"))
+	})
+
 	It("should work with windows line endings (CRLF)", func() {
 		out := new(bytes.Buffer)
 		w := newBufferedProcessOutput(out)

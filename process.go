@@ -195,6 +195,8 @@ func (p *systemProcess) wait(ctx context.Context) error {
 	case err := <-done:
 		if err != nil && strings.HasPrefix(err.Error(), "signal: ") {
 			// see note from above...
+			// TODO: this seems fishy since it also hides issues with broken output such as "signal: broken pipe"
+			// also matching errors based on string prefixes is pretty much an anti-pattern
 			err = nil
 		}
 		return err

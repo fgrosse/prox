@@ -130,25 +130,25 @@ func (o *output) next(p Process) *multiWriter {
 
 // nextColored is like output.next(…) but allows to set the color directly.
 func (o *output) nextColored(p Process, c color) *multiWriter {
-	po := &formattedOutput{Writer: o.writer}
+	out := &formattedOutput{Writer: o.writer}
 	name := p.Name + strings.Repeat(" ", o.prefixLength-len(p.Name))
 	if c == colorNone {
-		po.prefix = name + " │ "
+		out.prefix = name + " │ "
 	} else {
-		po.prefix = fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault)
+		out.prefix = fmt.Sprint(colorDefault, colorBold, c, name, " │ ", colorDefault)
 	}
 
 	if p.Output.Format == "" {
 		p.Output = DefaultStructuredOutput(p.Env)
 	}
 
-	var w io.Writer = po
+	var w io.Writer = out
 	switch p.Output.Format {
 	case "json":
-		jo := newProcessJSONOutput(po, p.Output)
+		jo := newProcessJSONOutput(out, p.Output)
 		w = newBufferedProcessOutput(jo)
 	default:
-		ao := newProcessAutoDetectOutput(po, p.Output)
+		ao := newProcessAutoDetectOutput(out, p.Output)
 		w = newBufferedProcessOutput(ao)
 	}
 
