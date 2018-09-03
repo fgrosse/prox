@@ -434,7 +434,8 @@ func (o *processJSONOutput) Write(line []byte) (int, error) {
 		msg = colored(col, msg)
 	}
 
-	return o.Writer.Write([]byte(msg + "\n"))
+	_, err = o.Writer.Write([]byte(msg + "\n"))
+	return len(line), err
 }
 
 // stringField attempts to extract a string field stored under the given key in
