@@ -39,3 +39,25 @@ var _ = Describe("colorPalette", func() {
 		})
 	})
 })
+
+var _ = Describe("parseColor", func() {
+	It("should support bold for all colors", func() {
+		colors := map[string]color{
+			"red": colorRed,
+			"green": colorGreen,
+			"yellow": colorYellow,
+			"blue": colorBlue,
+			"magenta": colorMagenta,
+			"cyan": colorCyan,
+			"white": colorWhite,
+		}
+
+		for colorStr, expected := range colors {
+			actual := parseColor(colorStr)
+			Expect(actual).To(Equal(expected), "Parsing " + colorStr)
+
+			actual = parseColor(colorStr+"-bold")
+			Expect(actual).To(Equal(expected+colorBold), "Parsing " + colorStr+ " (bold)")
+		}
+	})
+})

@@ -1,6 +1,9 @@
 package prox
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type color string
 
@@ -18,26 +21,32 @@ const (
 )
 
 func parseColor(s string) color {
+	c := colorDefault
+	bold := strings.HasSuffix(s, "-bold")
+	s = strings.TrimSuffix(s, "-bold")
+
 	switch s {
 	case "red":
-		return colorRed
-	case "red-bold":
-		return colorRed + colorBold
+		c = colorRed
 	case "green":
-		return colorGreen
+		c = colorGreen
 	case "yellow":
-		return colorYellow
+		c = colorYellow
 	case "blue":
-		return colorBlue
+		c = colorBlue
 	case "magenta":
-		return colorMagenta
+		c = colorMagenta
 	case "cyan":
-		return colorCyan
+		c = colorCyan
 	case "white":
-		return colorWhite
-	default:
-		return colorDefault
+		c = colorWhite
 	}
+
+	if bold {
+		c += colorBold
+	}
+
+	return c
 }
 
 type colorPalette struct {

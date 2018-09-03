@@ -23,7 +23,7 @@ func DefaultStructuredOutput(env Environment) StructuredOutput {
 		MessageField: msgField,
 		LevelField:   lvlField,
 		TagColors: map[string]string{
-			"error": "red-bold", // TODO: support bold for all colors
+			"error": "red-bold",
 			"fatal": "red-bold",
 		},
 		TaggingRules: []TaggingRule{
