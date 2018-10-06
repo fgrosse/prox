@@ -14,7 +14,6 @@ func init() {
 
 	flags := tailCmd.Flags()
 	flags.StringP("socket", "s", DefaultSocketPath, "path of unix socket file to connect to")
-	// TODO: flag to omit prefix (useful if connecting to a single command and piping JSON output into jq)
 }
 
 var tailCmd = &cobra.Command{
