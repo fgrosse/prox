@@ -26,6 +26,7 @@
 ### Output
 - limit characters per row in output based on terminal width (with opt-out))
 - allow a single structured output tag to be applied to multiple fields
+- print the last error message of the process that crashed the stack
 
 ### Client / Server
 - command or config to mark processes (highlight its output either via background color or marks on the left (e.g. ┃, ║, ┋, …)

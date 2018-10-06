@@ -2,34 +2,66 @@
 
 Prox is a process runner for Procfile-based applications inspired by [foreman][foreman].
 With `prox` you can run several processes defined in a `Procfile` concurrently
-within a single terminal. All process outputs are prefixed with their corresponding
-process names. One of the major use cases for this arises during development of an
-application that consist of multiple processes (e.g. microservices and storage backends).
-With a process runner you can easily start this "stack" of applications and inspect its
-output in a single shell while interacting with the application. 
+within a single terminal. All process outputs are merged but prefixed with their
+corresponding process names. One of the major use cases for this arises during
+local development of an application that consist of multiple processes
+(e.g. microservices and storage backends). With a process runner you can easily
+start this "stack" of applications and inspect its output in a single shell while
+interacting with the application.
 
-What makes prox special in comparison to [other foreman clones](#similar-projects)
-is that when prox starts the application, it will also listen on a unix socket for
-requests. This makes it possible to interact with a running `prox` instance in
-another terminal, for instance to tail the logs of a subset of processes. This can
-be especially useful when working with many processes where the merged output of
-all applications can be rather spammy and is hard to be read by humans. Other
-interactions include inspecting the state of all running processes, scaling a
-process to more instances or stopping and restarting of processes.
-
-Prox primary use case is as a development tool to run your stack locally and to
-help you understand what it is doing or why a component has crashed. To do this
-it is planned to introduce the `Proxfile` which serves as an opt-in alternative
-to the `Procfile` with more advanced features such as parsing structured log output
-to highlight relevant messages (not yet implemented).
-
-You may ask why not just use *docker* for local development since it provides similar
-client/server based functionality to run multiple processes, especially when
-using docker-compose. The reason is ease of development and a fast development cycle
-also for small code changes. It just takes longer than necessary to recompile a binary
-and additionally build the docker image. Also the extra file system and process isolation
+You may ask why not just use *docker* for local development since it provides
+similar functionality to run multiple processes, especially when using docker-compose.
+The reason is ease of development and a fast development cycle also for small
+code changes. It just takes longer than necessary to recompile a binary and
+additionally build the docker image. Also the extra file system and process isolation
 that are one of dockers many benefits in a production environment can become quite
 a nuisance during local development.
+
+## Features
+
+Prox primary use case is as a development tool to run your entire application stack
+on your local machine. Apart from running all components, Proxs primary goal is to
+help you understand what the application is doing and sometimes help to debug why
+a component has crashed.
+
+### Error reporting
+
+Like other process managers, prox will stop the entire stack when one of the
+managed processes has crashed. This way the system fails fast and it is the
+developers task to understand and fix the problem. This usually entails searching
+through the log output for the first fatal error which caused the system to go down.
+Prox helps with this by reporting the name and exit code of the process that was
+the root cause for the stack shutdown.
+
+### Log parsing
+
+Today it is good practice for applications to emit structured log output so it
+can be parsed and used easily. Prox detects if a process encodes its logs as JSON
+and can use this information to reformat and color the output. By default this is
+used to highlight error messages but the user can specify custom formatting as well.
+
+In the future log parsing can also be used during error reporting to print the
+last error message of the component which crashed the stack.
+
+### Prox Server
+
+Another thing that distinguishes Prox from [other foreman clones](#similar-projects)
+is that when prox starts the application, it will also listen on a unix socket for
+requests. This makes it possible to interact with a running Prox instance in
+another terminal, for instance to tail the logs of a subset of processes. This can
+be useful when working with many processes where the merged output of all
+applications can be rather spammy and is hard to be read by humans.
+
+The current version of the prox server only implements tailing but you can take
+a look at the [IDEAS.md](IDEAS.md) file for other functionality that might be
+implemented later on.
+
+## Proxfile
+
+Advanced users can use a slightly more complicated `Proxfile` which serves as an
+opt-in alternative to the `Procfile` but with more features.
+
+TODO: describe features
 
 ## Installation
 
@@ -118,6 +150,8 @@ redis    │ 15249:M 03 Oct 21:21:13.045 * Ready to accept connections
 For a detailed description of all prox commands and flags refer to the output
 of `prox help`.
 
+TODO: describe Proxfile
+
 ## Similar Projects
 
 - [foreman][foreman]: the original process runner by [David Dollar][foreman-blog]
@@ -149,7 +183,7 @@ a bigger feature its always best to discuss ideas in a new github issue. For eac
 pull request make sure that you covered your changes and additions with unit tests.
 
 Please keep in mind that I might not always be able to respond immediately but I
-usually try to react within the week ☺.
+usually try to react within a week or two ☺.
 
 [foreman]: https://github.com/ddollar/foreman
 [forego]: https://github.com/ddollar/forego
