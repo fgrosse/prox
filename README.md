@@ -3,10 +3,10 @@
 Prox is a process runner for Procfile-based applications inspired by [foreman][foreman].
 With `prox` you can run several processes defined in a `Procfile` concurrently
 within a single terminal. All process outputs are merged but prefixed with their
-corresponding process names. One of the major use cases for this arises during
-local development of an application that consist of multiple processes
-(e.g. microservices and storage backends). With a process runner you can easily
-start this "stack" of applications and inspect its output in a single shell while
+corresponding process names. One of the major use cases for this is the local
+development of an application that consist of multiple processes (e.g.
+microservices and storage backends). With a process runner you can easily start
+this "stack" of applications and inspect its output in a single shell while
 interacting with the application.
 
 You may ask why not just use *docker* for local development since it provides
@@ -59,9 +59,7 @@ implemented later on.
 ## Proxfile
 
 Advanced users can use a slightly more complicated `Proxfile` which serves as an
-opt-in alternative to the `Procfile` but with more features.
-
-TODO: describe features
+opt-in alternative to the `Procfile` but with more features (see [usage below](#advanced-proxfile-usage)).
 
 ## Installation
 
@@ -85,14 +83,16 @@ into the `prox` binary. You can inspected the version of your prox binary via
 otherwise of no use.
 
 ```bash
-go get -d github.com/fgrosse/prox/cmd/prox
+go get -v github.com/fgrosse/prox/cmd/prox
 cd $GOPATH/src/github.com/fgrosse/prox
 make install
 ```
 
 ## Usage
 
-You always need a `Procfile` which defines all processes that you want to run.
+You always need a `Procfile` or `Proxfile` which defines all processes that you want to run.
+
+### Simple Procfile usage
 
 ```bash
 $ cat Procfile
@@ -137,7 +137,7 @@ redis    │ 14773:C 03 Oct 21:17:26.487 # Redis version=4.0.1, bits=64, commit=
 …
 ```
 
-In order to follow the logs of a specific process open another terminal.
+In order to follow the logs of a _specific_ process open another terminal.
 
 ```bash
 prox tail redis
@@ -150,7 +150,41 @@ redis    │ 15249:M 03 Oct 21:21:13.045 * Ready to accept connections
 For a detailed description of all prox commands and flags refer to the output
 of `prox help`.
 
-TODO: describe Proxfile
+### Advanced Proxfile usage
+
+Instead of using a standard `Procfile` and `.env` file you can combine both in a
+`Proxfile`. Additionally this gives you access to more features such as custom
+coloring of structured log output.
+
+```bash
+$ cat Proxfile
+version: 1 # The Proxfile file format is versioned
+
+# Internally the Proxfile is parsed as YAML.
+# You can use comments, empty lines are ignored as well.
+
+processes:
+  redis: redis-server # Like the Procfile you specify processes as "name: shell script"
+
+  foo-service:
+    script: foo-service --debug -a -b 42
+    env:
+      - "CONFIG_DIR=$PWD/config foo-serve"
+
+  echo:
+    script: "echo $LISTEN_ADDR"
+    env:
+      - "LISTEN_ADDR=localhost:1232"
+
+  example-3:
+    script: my-app
+    tags:
+      errors:
+        color: red
+        condition:
+          field: level
+          value: "/error|fatal/i"
+```
 
 ## Similar Projects
 
