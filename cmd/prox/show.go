@@ -61,7 +61,11 @@ func printRunConfiguration(all, verbose bool, processName string, env prox.Envir
 		w := tabwriter.NewWriter(os.Stdout, 8, 8, 2, ' ', 0)
 		fmt.Fprintln(w, "NAME\tSCRIPT")
 		for _, p := range pp {
-			fmt.Fprintln(w, fmt.Sprintf("%s\t%s", p.Name, p.CommandLine()))
+			args, err := p.CommandLine()
+			if err != nil {
+				logger.Error("Failed to parse command line: " + err.Error())
+			}
+			fmt.Fprintln(w, fmt.Sprintf("%s\t%q", p.Name, args))
 		}
 		w.Flush()
 		return
