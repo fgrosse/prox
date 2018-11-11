@@ -10,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -257,14 +258,14 @@ func (p *systemProcess) parseCommandLine() ([]string, error) {
 		case r == '\\' && !singleQuoted:
 			escaped = true
 
-		case isSpace(r) && (singleQuoted || doubleQuoted):
+		case unicode.IsSpace(r) && (singleQuoted || doubleQuoted):
 			buf += string(r)
 
-		case isSpace(r) && buf != "":
+		case unicode.IsSpace(r) && buf != "":
 			args = append(args, buf)
 			buf = ""
 
-		case isSpace(r) && buf == "":
+		case unicode.IsSpace(r) && buf == "":
 			// collapse (i.e. ignore) multiple spaces between arguments
 			continue
 
@@ -299,7 +300,7 @@ func (p *systemProcess) parseCommandLine() ([]string, error) {
 		args = append(args, buf)
 	}
 
-	envRe := regexp.MustCompile(`\$({[a-zA-Z0-9_]+}|[a-zA-Z0-9_]+)`)
+	envRe := regexp.MustCompile(`\$({[a-zA-Z0-9_]+}|[a-zA-Z0-9_]+)`) // TODO: use os.Expand
 
 	for i := range args {
 		args[i] = envRe.ReplaceAllStringFunc(args[i], func(s string) string {
@@ -312,14 +313,6 @@ func (p *systemProcess) parseCommandLine() ([]string, error) {
 	}
 
 	return args, nil
-}
-
-func isSpace(r rune) bool {
-	switch r {
-	case ' ', '\t', '\r', '\n':
-		return true
-	}
-	return false
 }
 
 // CommandLine returns the shell command line that would be executed when the

@@ -78,7 +78,12 @@ func (e Environment) Set(s string) {
 		parts[1] = ""
 	}
 
-	e[parts[0]] = strings.TrimSpace(parts[1])
+	parts[1] = strings.TrimSpace(parts[1])
+	parts[1] = strings.TrimFunc(parts[1], func(r rune) bool {
+		return r == '"' || r == '\''
+	})
+
+	e[parts[0]] = parts[1]
 }
 
 // SetAll assigns a list of key=value pairs on e.

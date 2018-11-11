@@ -119,6 +119,8 @@ var _ = Describe("Environment", func() {
 				PROX_TEST_2=$PROX_TEST_1 really
 				PROX_TEST_3=Yay! $PROX_TEST_2 well
 				PROX_TEST_4=Empty $VARIABLE will be removed
+				PROX_TEST_5=Spaces are trimmed automatically     
+				PROX_TEST_6="You can use quotes to preserve them     "'
 			`
 
 			env := Environment{"PROX_TEST": "works"}
@@ -130,6 +132,8 @@ var _ = Describe("Environment", func() {
 				"PROX_TEST_2": "it works really",
 				"PROX_TEST_3": "Yay! it works really well",
 				"PROX_TEST_4": "Empty  will be removed",
+				"PROX_TEST_5": "Spaces are trimmed automatically",
+				"PROX_TEST_6": "You can use quotes to preserve them     ",
 			}))
 		})
 
@@ -138,8 +142,6 @@ var _ = Describe("Environment", func() {
 			err := env.ParseEnvFile(strings.NewReader("FOOBAR"))
 			Expect(err).To(HaveOccurred())
 		})
-
-		PIt("should support quoting values for maximum flexibility")
 	})
 
 	Describe("List", func() {
