@@ -15,6 +15,7 @@ import (
 
 	"github.com/fgrosse/zaptest"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gbytes"
 	"go.uber.org/zap"
@@ -105,6 +106,28 @@ var _ = Describe("process", func() {
 			Expect(p.Name()).To(Equal("foo"))
 		})
 	})
+
+	DescribeTable("command line parsing",
+		func(line string, expected []string) {
+			p := systemProcess{script: line}
+			actual, err := p.parseCommandLine()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(Equal(expected))
+		},
+
+		Entry("simple", `var --bar=baz`, []string{`var`, `--bar=baz`}),
+		Entry("double quotes", `var --bar="baz"`, []string{`var`, `--bar=baz`}),
+		Entry("quoting flag", `var "--bar=baz"`, []string{`var`, `--bar=baz`}),
+		Entry("quoted single quotes", `var "--bar='baz'"`, []string{`var`, `--bar='baz'`}),
+		Entry("back ticks", "var --bar=`baz`", []string{`var`, "--bar=`baz`"}),
+		Entry("escaping double quotes", `var "--bar=\"baz'"`, []string{`var`, `--bar="baz'`}),
+		Entry("escaping single quotes", `var "--bar=\'baz\'"`, []string{`var`, `--bar='baz'`}),
+		Entry("no escape in single quotes", `var --bar='\'`, []string{`var`, `--bar=\`}),
+		Entry("space in double quotes", `var "--bar baz"`, []string{`var`, `--bar baz`}),
+		Entry("space in flag name", `var --"bar baz"`, []string{`var`, `--bar baz`}),
+		Entry("space in flag value with single quotes", `var  --'bar baz'`, []string{`var`, `--bar baz`}),
+		Entry("quoted space", `cut -d ' ' -f 3`, []string{`cut`, `-d`, ` `, `-f`, `3`}),
+	)
 
 	Describe("Run", func() {
 		var log *zap.Logger
@@ -273,7 +296,7 @@ var _ = Describe("process", func() {
 			Eventually(w).Should(Say(`FOO=nice`))
 		})
 
-		PIt("should pass env variables with spaces at the beginning of the script", func() {
+		It("should pass env variables with spaces at the beginning of the script", func() {
 			w := NewBuffer()
 			p := &systemProcess{
 				name:   "test",
@@ -292,6 +315,27 @@ var _ = Describe("process", func() {
 			}()
 
 			Eventually(w).Should(Say(`FOO=Hello World`))
+		})
+
+		It("should pass arguments with spaces correctly", func() {
+			w := NewBuffer()
+			p := &systemProcess{
+				name:   "test",
+				script: testProcessScript("echo", "-quote", "Hello world"),
+				output: w,
+				logger: log.Named("process"),
+				env:    NewEnv([]string{"GO_WANT_HELPER_PROCESS=1"}),
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go func() {
+				defer GinkgoRecover()
+				p.Run(ctx)
+			}()
+
+			Eventually(w).Should(Say(`"Hello world"`))
 		})
 
 		Describe("canceling process", func() {
@@ -404,6 +448,7 @@ func echoProcess(args []string) {
 	printEnv := fs.Bool("env", false, "print all environment variables")
 	blocking := fs.Bool("block", false, "do not return after printing")
 	noSigInt := fs.Bool("no-sigint", false, "ignore SIGINT when blocking")
+	quote := fs.Bool("quote", false, "quote al arguments")
 
 	err := fs.Parse(args)
 	if err != nil {
@@ -428,7 +473,11 @@ func echoProcess(args []string) {
 	}
 
 	for _, v := range args {
-		fmt.Fprintln(out, v)
+		if *quote {
+			fmt.Fprintf(out, "%q\n", v)
+		} else {
+			fmt.Fprintln(out, v)
+		}
 	}
 
 	if *blocking {
@@ -476,5 +525,11 @@ func freePort(t GinkgoTInterface) string {
 // executes only the "TestHelperProcess" test cases which delegates execution
 // to one of the *Process functions to test sub process execution.
 func testProcessScript(args ...string) string {
+	for i := range args {
+		if strings.ContainsAny(args[i], " \t") {
+			args[i] = fmt.Sprintf("'%s'", args[i])
+		}
+	}
+
 	return fmt.Sprintf("%s -test.run=^TestHelperProcess$ -- ", os.Args[0]) + strings.Join(args, " ")
 }

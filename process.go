@@ -1,7 +1,6 @@
 package prox
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -158,18 +157,20 @@ func (p *systemProcess) Info() ProcessInfo {
 func (p *systemProcess) Run(ctx context.Context) error {
 	p.mu.Lock()
 
-	commandLine := p.buildCommandLine()
-	p.logger.Debug("Starting new shell process", zap.String("script", commandLine))
+	args, err := p.parseCommandLine()
+	if err != nil {
+		return errors.Wrap(err, "failed to parse command line")
+	}
 
-	cmdParts := strings.Fields(commandLine)
-	p.cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
+	p.logger.Debug("Starting new shell process", zap.Strings("script", args))
+	p.cmd = exec.Command("env", args...)
 
 	p.cmd.Stdout = p.output
 	p.cmd.Stderr = p.output
 	p.cmd.Env = p.env.List()
 
 	p.startedAt = time.Now()
-	err := p.cmd.Start()
+	err = p.cmd.Start()
 	p.mu.Unlock()
 
 	if err != nil {
@@ -238,35 +239,92 @@ func (p *systemProcess) wait(ctx context.Context) error {
 	}
 }
 
-func (p *systemProcess) buildCommandLine() string {
-	script := p.env.Expand(p.script)
+func (p *systemProcess) parseCommandLine() ([]string, error) {
+	var (
+		args         []string
+		buf          string
+		escaped      bool
+		doubleQuoted bool
+		singleQuoted bool
+	)
 
-	r := regexp.MustCompile(`[a-zA-Z_]+=\S+`)
+	for _, r := range p.script {
+		switch {
+		case escaped:
+			buf += string(r)
+			escaped = false
 
-	b := new(bytes.Buffer)
-	parts := strings.Fields(script) // TODO breaks if we have quoted spaces
+		case r == '\\' && !singleQuoted:
+			escaped = true
 
-	var done bool
-	for _, part := range parts {
-		match := r.FindString(part)
-		if done == false && match != "" {
-			p.env.Set(match)
-		} else {
-			done = true
-		}
+		case isSpace(r) && (singleQuoted || doubleQuoted):
+			buf += string(r)
 
-		if done {
-			b.WriteString(part)
-			b.WriteString(" ")
+		case isSpace(r) && buf != "":
+			args = append(args, buf)
+			buf = ""
+
+		case isSpace(r) && buf == "":
+			// collapse (i.e. ignore) multiple spaces between arguments
+			continue
+
+		case r == '"' && !singleQuoted:
+			doubleQuoted = !doubleQuoted
+
+		case r == '\'' && !doubleQuoted:
+			singleQuoted = !singleQuoted
+
+		case r == ';', r == '&', r == '|', r == '<', r == '>':
+			if !(escaped || singleQuoted || doubleQuoted) {
+				return nil, errors.Errorf("command redirection or piping is not supported(got %v)", r)
+			} else {
+				buf += string(r)
+			}
+
+		default:
+			buf += string(r)
 		}
 	}
 
-	return strings.TrimSpace(b.String())
+	switch {
+	case escaped:
+		return nil, errors.New("bad escape at the end")
+	case singleQuoted:
+		return nil, errors.New("unclosed single quote")
+	case doubleQuoted:
+		return nil, errors.New("unclosed double quote")
+	}
+
+	if buf != "" {
+		args = append(args, buf)
+	}
+
+	envRe := regexp.MustCompile(`\$({[a-zA-Z0-9_]+}|[a-zA-Z0-9_]+)`)
+
+	for i := range args {
+		args[i] = envRe.ReplaceAllStringFunc(args[i], func(s string) string {
+			s = s[1:]
+			if s[0] == '{' {
+				s = s[1 : len(s)-1]
+			}
+			return p.env.Get(s, "")
+		})
+	}
+
+	return args, nil
+}
+
+func isSpace(r rune) bool {
+	switch r {
+	case ' ', '\t', '\r', '\n':
+		return true
+	}
+	return false
 }
 
 // CommandLine returns the shell command line that would be executed when the
 // given Process is started.
-func (p Process) CommandLine() string {
+func (p Process) CommandLine() ([]string, error) {
 	sp := newSystemProcess(p.Name, p.Script, p.Env, nil, nil)
-	return sp.buildCommandLine()
+	return sp.parseCommandLine()
 }
