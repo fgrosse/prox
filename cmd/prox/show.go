@@ -7,7 +7,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"bitbucket.org/corvan/prox"
+	"github.com/fgrosse/prox"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

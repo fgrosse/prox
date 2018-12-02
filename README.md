@@ -74,7 +74,7 @@ somewhere in your path.
 ### Building from source
 
 If you want to compile prox from source you need a working installation of Go
-version 1.9 or greater and the `GOPATH` environment variable must be set.
+version 1.9 or greater.
 
 You can either install prox directly via `go get` or use the `make install` target.
 The preferred way is the installation via make since this compiles version information

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ### Fixed
 - Implement quoting for environment variables (e.g. to preserve spaces at the end)
+- Go module support
 
 ## [0.4.0] - 2018-11-11
 ### Fixed
