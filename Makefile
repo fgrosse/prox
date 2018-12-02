@@ -42,7 +42,7 @@ dep-status:
 
 LICENSE-THIRD-PARTY: $(shell find vendor -name LICENSE)
 	@echo -e "Third party libraries\n" > $@
-	@for f in $$(find vendor -name LICENSE -printf '%P\n' | xargs dirname); do \
+	@for f in $$(find vendor -name LICENSE -printf '%P\n' | xargs dirname | sort); do \
 		echo "Including license of $$f"; \
 		echo "================================================================================" >> $@; \
 		echo "$$f" >> $@; \
