@@ -37,15 +37,20 @@ release: test LICENSE-THIRD-PARTY
 
 	rm -R release-$(VERSION)
 
-LICENSE-THIRD-PARTY: $(shell find vendor -name LICENSE)
+.PHONY: LICENSE-THIRD-PARTY
+LICENSE-THIRD-PARTY:
 	@echo -e "Third party libraries\n" > $@
-	@for f in $$(find vendor -name LICENSE -printf '%P\n' | xargs dirname | sort); do \
-		echo "Including license of $$f"; \
-		echo "================================================================================" >> $@; \
-		echo "$$f" >> $@; \
-		echo "================================================================================" >> $@; \
-		cat "vendor/$$f/LICENSE" >> $@; \
-		echo -e "\n" >> $@; \
+	for dependency in $$(go list -m -f '{{ .Dir }}' all | grep -v prox); do \
+		license=$$(find "$$dependency" -name LICENSE -o -name COPYING | tail -n1); \
+		if [[ -n "$$license" ]]; then \
+			name=$$(echo "$$dependency" | sed "s;$$GOPATH/pkg/mod/;;"); \
+			echo "Including license of $$name"; \
+			echo "================================================================================" >> $@; \
+			echo "$$name" >> $@; \
+			echo "================================================================================" >> $@; \
+			cat "$$license" >> $@; \
+			echo -e "\n" >> $@; \
+		fi; \
 	done
 
 version:
