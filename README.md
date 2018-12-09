@@ -198,11 +198,11 @@ processes:
 
 ## Dependencies
 
-Prox uses [go dep][go-dep] as dependency management tool. All vendored dependencies
-are specified in the [Gopkg.toml](Gopkg.toml) file and are checked in in the [vendor](vendor)
-directory. Prox itself mainly relies on the Go standard library, [zap][zap] for logging,
-[cobra/viper][cobra] for the CLI and [pkg/errors][pkg-errors] for error wrapping as well
-as [hashicorp/go-multierror][multi-errors].
+Prox uses [go mod][go-mod] as dependency management tool. All vendored dependencies
+are specified in the [go.mod](go.mod) file and their licenses are copied into
+[LICENSE-THIRD-PARTY](LICENSE-THIRD-PARTY). Prox itself mainly relies on the Go
+standard library, [zap][zap] for logging, [cobra/viper][cobra] for the CLI and
+[pkg/errors][pkg-errors] for error wrapping as well as [hashicorp/go-multierror][multi-errors].
 
 ## License
 
@@ -228,7 +228,7 @@ usually try to react within a week or two ☺.
 [releases]: https://github.com/fgrosse/prox/releases
 [foreman-blog]: http://blog.daviddollar.org/2011/05/06/introducing-foreman.html
 [more-similar]: https://github.com/ddollar/foreman#ports
-[go-dep]: https://github.com/golang/dep
+[go-mod]: https://github.com/golang/go/wiki/Modules
 [zap]: https://godoc.org/go.uber.org/zap
 [cobra]: https://github.com/spf13/cobra
 [pkg-errors]: https://github.com/pkg/errors
