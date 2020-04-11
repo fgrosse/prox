@@ -1,4 +1,4 @@
-# Prox [![Build Status](https://travis-ci.org/fgrosse/prox.png)](https://travis-ci.org/fgrosse/prox) [![GitHub release](https://img.shields.io/github/tag/fgrosse/prox.svg?style=flat)](https://github.com/fgrosse/prox/releases)  [![License](https://img.shields.io/github/license/fgrosse/prox.svg)](https://github.com/fgrosse/prox/blob/master/LICENSE) [![GoDoc](https://godoc.org/github.com/fgrosse/prox?status.svg)](https://godoc.org/github.com/fgrosse/prox)
+# Prox ![Go](https://github.com/fgrosse/prox/workflows/Go/badge.svg) [![GitHub release](https://img.shields.io/github/tag/fgrosse/prox.svg?style=flat)](https://github.com/fgrosse/prox/releases)  [![License](https://img.shields.io/github/license/fgrosse/prox.svg)](https://github.com/fgrosse/prox/blob/master/LICENSE) [![GoDoc](https://godoc.org/github.com/fgrosse/prox?status.svg)](https://godoc.org/github.com/fgrosse/prox)
 
 **Notes: this is a pre release. There is no promise regarding API stability or breaking changes**
 
