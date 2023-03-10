@@ -1,3 +1,5 @@
 releases
 release-*
 *.tar.gz
+
+dist/
