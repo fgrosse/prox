@@ -2,9 +2,13 @@
 # Make sure to check the documentation at https://goreleaser.com
 before:
   hooks:
+    - make test
+    - make LICENSE-THIRD-PARTY
     - go mod tidy
+
 builds:
-  - env:
+  - main: ./cmd/prox
+    env:
       - CGO_ENABLED=0
     goos:
       - linux

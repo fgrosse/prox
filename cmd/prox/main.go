@@ -33,7 +33,7 @@ var cmd = &cobra.Command{
 
 Version: %s
 
-`, Version),
+`, version),
 	Run: run,
 }
 

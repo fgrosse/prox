@@ -1,7 +1,5 @@
 # Prox ![Go](https://github.com/fgrosse/prox/workflows/Go/badge.svg) [![GitHub release](https://img.shields.io/github/tag/fgrosse/prox.svg?style=flat)](https://github.com/fgrosse/prox/releases)  [![License](https://img.shields.io/github/license/fgrosse/prox.svg)](https://github.com/fgrosse/prox/blob/master/LICENSE) [![GoDoc](https://godoc.org/github.com/fgrosse/prox?status.svg)](https://godoc.org/github.com/fgrosse/prox)
 
-**Notes: this is a pre release. There is no promise regarding API stability or breaking changes**
-
 Prox is a process runner for Procfile-based applications inspired by [foreman][foreman].
 With `prox` you can run several processes defined in a `Procfile` concurrently
 within a single terminal. All process outputs are merged but prefixed with their
