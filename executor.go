@@ -69,7 +69,9 @@ func (e *Executor) Run(ctx context.Context, processes []Process) error {
 	defer logger.Sync()
 	go e.monitorContext(ctx, logger)
 
-	output := e.newOutput(processes)
+	// Add a timestamp to the process output, but not to prox's own log
+	// output.
+	output := newOutput(processes, e.noColors, newTimestampWriter(e.output))
 	pp := make([]process, len(processes))
 	for i, p := range processes {
 		po := output.next(p)

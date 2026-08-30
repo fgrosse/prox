@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-Nothing yet
+- Add timestamps to process output (fgrosse/prox#5)
 
 ## [1.1.0] - 2024-07-13
 - Improve file name matching when determining parser for value of --procfile flag (fgrosse/prox#8)
